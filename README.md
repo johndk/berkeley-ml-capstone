@@ -97,10 +97,6 @@ and final test sets. The split will preserve time order so that the models are t
 on later flights they have not seen. Files use a consistent `AIRPORT_YEAR.csv` naming pattern so that the same processing 
 steps can be applied to each airport and year.
 
-The GitHub repository submitted for the projects contains the complete data only for JFK 2024, simply because the entire
-data set is quite large. This should be sufficient to provide a clear picture of the data involved since it is simply
-replicated for the airports ORD and ATL and the years 2019 and 2023.
-
 ### Data Directory
 
 ```text
