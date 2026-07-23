@@ -1,16 +1,19 @@
-**ATTENTION: Note to reviewer. This submission is in progress expected completion end-of-day Friday, July 24.** 
+**ATTENTION: Note to reviewer. This submission is in progress. Expected completion end-of-day Friday, July 24, 2026.** 
 
-# Capstone Project
+# Capstone Project - Berkeley ML and AI 
+## Initial Report and Exploratory Data Analysis
 
 ## Overview
 
-This capstone investigates whether machine learning can predict significant delays for individual flights departing from three major United States airports:
+This capstone investigates whether machine learning can predict significant delays for individual flights departing from 
+three major United States airports:
 
 - John F. Kennedy International Airport (JFK)
 - Chicago O'Hare International Airport (ORD)
 - Hartsfield-Jackson Atlanta International Airport (ATL)
 
-A significant delay is defined as a departure or arrival delay of 15 minutes or more. The project will also explore which flight, airport, and weather conditions are most closely associated with delays.
+A significant delay is defined as a departure or arrival delay of 15 minutes or more. The project will also explore 
+which flight, airport, and weather conditions are most closely associated with delays.
 
 The project has three related prediction goals:
 
@@ -18,7 +21,9 @@ The project has three related prediction goals:
 2. Before pushback, predict whether a flight will arrive at least 15 minutes late.
 3. Immediately after pushback, predict whether a flight will arrive at least 15 minutes late using its actual departure delay.
 
-The first two models will use only information available before pushback. The third will add the actual departure time and departure delay. Comparing the second and third models will show how much arrival predictions improve once the flight has pushed back. Information recorded after takeoff or arrival will not be used to make predictions.
+The first two models will use only information available before pushback. The third will add the actual departure time 
+and departure delay. Comparing the second and third models will show how much arrival predictions improve once the flight 
+has pushed back. Information recorded after takeoff or arrival will not be used to make predictions.
 
 The project combines three main data sources:
 
@@ -26,7 +31,8 @@ The project combines three main data sources:
 - Aviation System Performance Metrics (ASPM) airport traffic and congestion data
 - National Oceanic and Atmospheric Administration (NOAA) weather observations
 
-Each flight will be matched with the most recent airport and weather information available before the prediction is made. This prevents the models from using information from the future.
+Each flight will be matched with the most recent airport and weather information available before the prediction is 
+made. This prevents the models from using information from the future.
 
 The work will include:
 
@@ -37,11 +43,15 @@ The work will include:
 - Measuring model performance on later flights that were not used for training
 - Explaining which factors have the strongest effect on each model's predictions
 
-The project focuses on individual flights. Aircraft rotations, previous-flight chains, and delay spread through an airline network are outside its scope. The approach is informed by the flight-level delay research of Snell, Zoutendijk, and Pineda. The final analysis will compare both model performance and the factors associated with delays across JFK, ORD, and ATL.
+The project focuses on individual flights. Aircraft rotations, previous-flight chains, and delay spread through an airline 
+network are out of scope. The approach is informed by the flight-level delay research of Snell, Zoutendijk, and Pineda. 
+The final analysis will compare both model performance and the factors associated with delays across JFK, ORD, and ATL.
 
 ## Business Understanding
 
-Flight delays create costs and disruption for passengers, airlines, and airports. Earlier warning of a likely delay can help airlines communicate with passengers, adjust staffing and gate plans, and prepare for possible missed connections. Airports can also use this information to better understand when congestion or weather is likely to affect operations.
+Flight delays create costs and disruption for passengers, airlines, and airports. Earlier warning of a likely delay 
+can help airlines communicate with passengers, adjust staffing and gate plans, and prepare for possible missed connections. 
+Airports can also use this information to better understand when congestion or weather is likely to affect operations.
 
 This project asks three practical questions:
 
@@ -49,13 +59,19 @@ This project asks three practical questions:
 - Can an arrival delay of 15 minutes or more be identified before pushback?
 - How much does the arrival prediction improve once the actual departure delay is known?
 
-The analysis will also compare JFK, ORD, and ATL because the conditions associated with delay may differ by airport. As emphasized by Snell, Zoutendijk, and Pineda, a useful result should do more than produce a yes-or-no answer. It should provide a reliable estimate of delay risk and clearly show which schedule, airport, and weather conditions influenced the prediction.
+The analysis will also compare JFK, ORD, and ATL because the conditions associated with delay may differ by airport. 
+As emphasized by Snell, Zoutendijk, and Pineda, a useful result should do more than produce a yes-or-no answer. It should 
+provide a reliable estimate of delay risk and clearly show which schedule, airport, and weather conditions influenced the 
+prediction.
 
-The models are intended as decision-support tools, not as proof that a particular factor caused a delay. Success will be judged by how well the models identify delayed flights, how often their warnings are correct, and whether their results can be explained in a useful way.
+The models are intended as decision-support tools, not as proof that a particular factor caused a delay. Success will 
+be judged by how well the models identify delayed flights, how often their warnings are correct, and whether their results 
+can be explained in a useful way.
 
 ## Data Understanding
 
-The project brings together flight, airport, and weather data. The record of analysis is one flight departing from JFK, ORD, or ATL. Airport and weather records are added to each flight without changing this one-row-per-flight structure.
+The project brings together flight, airport, and weather data. The record of analysis is one flight departing from JFK, 
+ORD, or ATL. Airport and weather records are added to each flight without changing this one-row-per-flight structure.
 
 ### Data Sources
 
@@ -65,13 +81,25 @@ The project brings together flight, airport, and weather data. The record of ana
 | Aviation System Performance Metrics (ASPM) | Scheduled arrivals and departures and recent measures of airport congestion and delay | One row per airport and hour |
 | National Oceanic and Atmospheric Administration (NOAA) | Temperature, humidity, visibility, precipitation, wind, and reported weather conditions | One row per weather observation |
 
-BTS provides the individual flight records and the two outcomes the models will predict. `DepDel15` identifies flights that departed at least 15 minutes late, while `ArrDel15` identifies flights that arrived at least 15 minutes late. ASPM describes recent conditions at the departure airport, and NOAA describes the weather observed there before departure.
+BTS provides the individual flight records and the two outcomes the models will predict. `DepDel15` identifies flights 
+that departed at least 15 minutes late, while `ArrDel15` identifies flights that arrived at least 15 minutes late. ASPM 
+describes recent conditions at the departure airport, and NOAA describes the weather observed there before departure.
 
 ### Data Coverage
 
-The project is designed to compare three airports—JFK, ORD, and ATL—using data from 2019, 2023, and 2024. These years were selected to represent periods before and after the COVID-19 pandemic when the airports were operating at or near normal capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after the major pandemic-related disruptions had passed.
+The project is designed to compare three airports—JFK, ORD, and ATL—using data from 2019, 2023, and 2024. These years 
+were selected to represent periods before and after the COVID-19 pandemic when the airports were operating at or near 
+normal capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after the 
+major pandemic-related disruptions had passed.
 
-Before modeling begins, a decision will be made about how to divide the years and flights into training, development, and final test sets. The split will preserve time order so that the models are trained on earlier flights and evaluated on later flights they have not seen. Files use a consistent `AIRPORT_YEAR.csv` naming pattern so that the same processing steps can be applied to each airport and year.
+Before modeling begins, a decision will be made about how to divide the years and flights into training, development, 
+and final test sets. The split will preserve time order so that the models are trained on earlier flights and evaluated 
+on later flights they have not seen. Files use a consistent `AIRPORT_YEAR.csv` naming pattern so that the same processing 
+steps can be applied to each airport and year.
+
+The GitHub repository submitted for the projects contains the complete data only for JFK 2024, simply because the entire
+data set is quite large. This should be sufficient to provide a clear picture of the data involved since it is simply
+replicated for the airports ORD and ATL and the years 2019 and 2023.
 
 ### Data Directory
 
@@ -159,11 +187,18 @@ data/
 │   ├── ORD_2019.csv
 │   └── ... through ATL, JFK, and ORD for 2024
 ├── features/
-│   └── all_airports_features.csv
+│   ├── ATL_2019.csv
+│   ├── JFK_2019.csv
+│   ├── ORD_2019.csv
+│   └── ... through ATL, JFK, and ORD for 2024
 └── models/
-    ├── model_1_depdel15_pre_pushback.csv
-    ├── model_2a_arrdel15_pre_pushback.csv
-    └── model_2b_arrdel15_post_pushback.csv
+    ├── ATL_2019_m1.csv
+    ├── ATL_2019_m2a.csv
+    ├── ATL_2019_m2b.csv
+    ├── JFK_2019_m1.csv
+    ├── JFK_2019_m2a.csv
+    ├── JFK_2019_m2b.csv
+    └── ... same three model files for each airport and year
 ```
 
 The folders represent the main stages of the data:
@@ -188,13 +223,13 @@ The `merged` folder contains one airport-year flight file with the appropriate A
 
 #### Features
 
-The `features` folder will contain the combined, feature-engineered dataset used as the common source for all three models.
+The `features` folder contains one feature-engineered file for each airport and year. These files remain partitioned by airport and year unless a modeling requirement provides a clear reason to combine them.
 
 #### Models
 
-The `models` folder will contain three model-ready CSV files projected from the feature dataset. Each file will include only the predictors and outcome allowed at that prediction time.
+The `models` folder contains three model-ready projections for each airport-year feature file. The `_m1`, `_m2a`, and `_m2b` suffixes identify the three prediction scenarios. Each file includes only the predictors and outcome allowed at that prediction time.
 
-The feature and model CSV files shown above are planned names and do not exist yet. The processing and cleaning work is recorded in separate notebooks for BTS, ASPM, and NOAA. A separate merge notebook combines the three cleaned sources.
+The processing and cleaning work is recorded in separate notebooks for BTS, ASPM, and NOAA. A separate merge notebook combines the three cleaned sources.
 
 ### Data Flow
 
@@ -207,22 +242,22 @@ Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘
                                                       │
                                                       ▼
                                              Merged flight data
+                                           AIRPORT_YEAR.csv
                                                       │
                                                       ▼
                                              Feature engineering
                                                       │
                                                       ▼
-                                     all_airports_features.csv
+                                 features/AIRPORT_YEAR.csv
                                                       │
                             ┌─────────────────────────┼─────────────────────────┐
                             ▼                         ▼                         ▼
-              model_1_depdel15_         model_2a_arrdel15_        model_2b_arrdel15_
-              pre_pushback.csv          pre_pushback.csv          post_pushback.csv
-              Departure delay           Arrival delay             Arrival delay
-              Before pushback           Before pushback           After pushback
+           models/AIRPORT_YEAR_m1.csv  models/AIRPORT_YEAR_m2a.csv  models/AIRPORT_YEAR_m2b.csv
+           Departure delay             Arrival delay               Arrival delay
+           Before pushback             Before pushback             After pushback
 ```
 
-Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The cleaned sources are merged into a single flight-level dataset. Feature engineering will create additional values from the existing dates, times, routes, congestion measures, and weather conditions. The resulting data will then be separated into the three model datasets according to what information is allowed at each prediction time.
+Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The cleaned sources are merged into a single flight-level dataset. Feature engineering creates additional values from the existing dates, times, routes, congestion measures, and weather conditions. The resulting data is then separated into the three model datasets according to what information is allowed at each prediction time.
 
 ### Matching Records by Time
 
@@ -238,7 +273,7 @@ This time-based matching is important because a model should not use airport con
 | Model 2A | `ArrDel15` | The same information available to Model 1 |
 | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
 
-Before the model datasets are created, the merged data will be explored and expanded with features that summarize time of day, season, route, distance, congestion, and weather. Information recorded after takeoff or arrival will not be included as a model input.
+The merged data is explored and expanded with features that summarize time of day, season, route, distance, congestion, and weather. Information recorded after takeoff or arrival is not included as a model input.
 
 ## Data Preparation
 
@@ -250,6 +285,16 @@ Before the model datasets are created, the merged data will be explored and expa
 
 ## References
 
+### Data Sources
+
+1. [BTS - Aviation Data Library](https://www.transtats.bts.gov/databases.asp?Z1qr_VQ=E&Z1qr_Qr5p=N8vn6v10&f7owrp6_VQF=D)
+2. [BTS - Airline On-Time Performance Data](https://www.transtats.bts.gov/DL_SelectFields.aspx?gnoyr_VQ=FGJ&QO_fu146_anzr=b0-gvzr)
+3. [NOAA - Access](https://www.ncei.noaa.gov/access)
+4. [NOAA - Local Climatological Data](https://www.ncei.noaa.gov/data/local-climatological-data/access/)
+5. [NOAA - Weather Stat](https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv)
+5. [ASPM - Aviation System Performance Metrics](https://www.aspm.faa.gov/apm/sys/main.asp)
+
+### Papers
 1. Kenney Snell, Jozef Zurada, Jan Kozak, and Zahra Hatami, *Predicting Flight Delays Using Machine Learning*. **Primary reference.**
 2. Micha Zoutendijk and Mihaela Mitici, *Probabilistic Flight Delay Predictions Using Machine Learning and Applications to the Flight-to-Gate Assignment Problem*. **Primary reference.**
 3. Juan Pineda-Jaramillo, Claudia Munoz, Rodrigo Mesa-Arango, Carlos Gonzalez-Calderon, and Anne Lange, *Integrating Multiple Data Sources for Improved Flight Delay Prediction Using Explainable Machine Learning*. **Primary reference.**

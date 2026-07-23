@@ -1,0 +1,498 @@
+<!-- -->
+
+<!-- -->
+<html><head><title>ASPM Report</title><style>
+body, td {font-family:Arial,Verdana,Helvetica,sans-serif;font-size:10pt;color: #333;}
+h1 {color:#004080;}
+thead {display:table-header-group;}
+.info {font-size:80%;}
+.infoX {font-size:90%;}
+.table_header {text-align:center; background-color:#C0E4FE; font-weight:bold; color:#004080;}
+.table_header_right {text-align:right; background-color:#C0E4FE; font-weight:bold; color:#004080;}
+.table_header_left {text-align:left; background-color:#C0E4FE; font-weight:bold; color:#004080;}
+.table_subtotal {text-align:right; color:black; background-color:#dfdfdf;}
+.table_subtotal_lead {text-align:left; color:black; background-color:#dfdfdf;}
+.table_footer {text-align:right; background-color:#C0E4FE; font-weight:bold; color: #004080;}
+.table_footer_lead {text-align:left; background-color:#C0E4FE; font-weight:bold; color:#004080;}
+.table_footer_mid {text-align:center; background-color:#C0E4FE; font-weight:bold; color:#004080;}
+</style>
+<script language="JavaScript" src="/js/jquery-1.7.js" type="text/javascript"></script>
+<script language="JavaScript" src="/js/ExcelFriendly.js" type="text/javascript"></script>
+<link rel="shortcut icon" href="https://www.aspm.faa.gov/images/favicon.ico" type="image/x-icon">
+</head><body>
+<table border=0 cellpadding=4 cellspacing=0 width="100%">
+<thead>
+<tr><td colspan=17><h1>ASPM : Airport Analysis : All Flights Report</h1><span class="infoX">From 10/31/2019 To 10/31/2019 ; Airport=ORD : Use Schedule</span></td></tr>
+<tr>
+<td nowrap class="table_header" style=text-align:right;>Hour</td>
+<td nowrap class="table_header" style="text-align:right">Scheduled<br>Departures</td>
+<td nowrap class="table_header" style="text-align:right">Scheduled<br>Arrivals</td>
+<td nowrap class="table_header" style="text-align:right">Departures<br>For Metric<br>Computation</td>
+<td nowrap class="table_header" style="text-align:right">Arrivals<br>For Metric<br>Computation</td>
+<td nowrap class="table_header" style="text-align:right">% On-Time<br>Gate<br>Departures</td>
+<td nowrap class="table_header" style="text-align:right">% On-Time<br>Airport<br>Departures</td>
+<td nowrap class="table_header" style="text-align:right">% On-Time<br>Gate<br>Arrivals</td>
+<td nowrap class="table_header" style="text-align:right">Average<br>Gate<br>Departure<br>Delay</td>
+<td nowrap class="table_header" style="text-align:right">Average<br>Taxi<br>Out<br>Time</td>
+<td nowrap class="table_header" style="text-align:right">Average<br>Taxi<br>Out<br>Delay</td>
+<td nowrap class="table_header" style="text-align:right">Average<br>Airport<br>Departure<br>Delay</td>
+<td nowrap class="table_header" style="text-align:right">Average<br>Airborne<br>Delay</td>
+<td nowrap class="table_header" style="text-align:right">Average<br>Taxi<br>In<br>Delay</td>
+<td nowrap class="table_header" style="text-align:right">Average<br>Block<br>Delay</td>
+<td nowrap class="table_header" style="text-align:right">Average<br>Gate<br>Arrival<br>Delay</td>
+</tr>
+</thead>
+<tr>
+<td nowrap style=text-align:right;>0</td>
+<td nowrap align=right>5</td>
+<td nowrap align=right>9</td>
+<td nowrap align=right>3</td>
+<td nowrap align=right>12</td>
+<td nowrap align=right>66.67</td>
+<td nowrap align=right>66.67</td>
+<td nowrap align=right>75.00</td>
+<td nowrap align=right>21.67</td>
+<td nowrap align=right>25.33</td>
+<td nowrap align=right>13.93</td>
+<td nowrap align=right>33.67</td>
+<td nowrap align=right>1.92</td>
+<td nowrap align=right>4.18</td>
+<td nowrap align=right>5.25</td>
+<td nowrap align=right>32.42</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>1</td>
+<td nowrap align=right>1</td>
+<td nowrap align=right>2</td>
+<td nowrap align=right>3</td>
+<td nowrap align=right>3</td>
+<td nowrap align=right>33.33</td>
+<td nowrap align=right>33.33</td>
+<td nowrap align=right>33.33</td>
+<td nowrap align=right>47.33</td>
+<td nowrap align=right>33.33</td>
+<td nowrap align=right>21.93</td>
+<td nowrap align=right>69.67</td>
+<td nowrap align=right>0.33</td>
+<td nowrap align=right>4.87</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>26</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>2</td>
+<td nowrap align=right>3</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>3</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>33.33</td>
+<td nowrap align=right>0.00</td>
+<td nowrap align=right>0.00</td>
+<td nowrap align=right>274.67</td>
+<td nowrap align=right>30.33</td>
+<td nowrap align=right>19.07</td>
+<td nowrap align=right>294</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>3</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>2</td>
+<td nowrap align=right>0.00</td>
+<td nowrap align=right>0.00</td>
+<td nowrap align=right>50.00</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>0</td>
+<td nowrap align=right>2.60</td>
+<td nowrap align=right>5</td>
+<td nowrap align=right>36.50</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>4</td>
+<td nowrap align=right>2</td>
+<td nowrap align=right>2</td>
+<td nowrap align=right>2</td>
+<td nowrap align=right>10</td>
+<td nowrap align=right>50.00</td>
+<td nowrap align=right>50.00</td>
+<td nowrap align=right>80.00</td>
+<td nowrap align=right>30.50</td>
+<td nowrap align=right>33.50</td>
+<td nowrap align=right>22.10</td>
+<td nowrap align=right>53</td>
+<td nowrap align=right>0.40</td>
+<td nowrap align=right>3.00</td>
+<td nowrap align=right>1.20</td>
+<td nowrap align=right>75.50</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>5</td>
+<td nowrap align=right>10</td>
+<td nowrap align=right>13</td>
+<td nowrap align=right>11</td>
+<td nowrap align=right>12</td>
+<td nowrap align=right>90.91</td>
+<td nowrap align=right>18.18</td>
+<td nowrap align=right>66.67</td>
+<td nowrap align=right>2.73</td>
+<td nowrap align=right>42.09</td>
+<td nowrap align=right>30.56</td>
+<td nowrap align=right>30.55</td>
+<td nowrap align=right>3.17</td>
+<td nowrap align=right>1.73</td>
+<td nowrap align=right>4.25</td>
+<td nowrap align=right>19.42</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>6</td>
+<td nowrap align=right>26</td>
+<td nowrap align=right>33</td>
+<td nowrap align=right>27</td>
+<td nowrap align=right>33</td>
+<td nowrap align=right>88.89</td>
+<td nowrap align=right>29.63</td>
+<td nowrap align=right>78.79</td>
+<td nowrap align=right>2.85</td>
+<td nowrap align=right>36.07</td>
+<td nowrap align=right>24.61</td>
+<td nowrap align=right>24.89</td>
+<td nowrap align=right>6.06</td>
+<td nowrap align=right>5.48</td>
+<td nowrap align=right>5.94</td>
+<td nowrap align=right>17.85</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>7</td>
+<td nowrap align=right>64</td>
+<td nowrap align=right>67</td>
+<td nowrap align=right>64</td>
+<td nowrap align=right>59</td>
+<td nowrap align=right>84.38</td>
+<td nowrap align=right>10.94</td>
+<td nowrap align=right>66.10</td>
+<td nowrap align=right>7.59</td>
+<td nowrap align=right>56.91</td>
+<td nowrap align=right>45.32</td>
+<td nowrap align=right>50.67</td>
+<td nowrap align=right>2.29</td>
+<td nowrap align=right>9.49</td>
+<td nowrap align=right>14.83</td>
+<td nowrap align=right>18.98</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>8</td>
+<td nowrap align=right>97</td>
+<td nowrap align=right>81</td>
+<td nowrap align=right>95</td>
+<td nowrap align=right>74</td>
+<td nowrap align=right>67.37</td>
+<td nowrap align=right>4.21</td>
+<td nowrap align=right>58.11</td>
+<td nowrap align=right>21.49</td>
+<td nowrap align=right>51.19</td>
+<td nowrap align=right>39.75</td>
+<td nowrap align=right>59.91</td>
+<td nowrap align=right>3.04</td>
+<td nowrap align=right>11.67</td>
+<td nowrap align=right>13.69</td>
+<td nowrap align=right>23.85</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>9</td>
+<td nowrap align=right>68</td>
+<td nowrap align=right>69</td>
+<td nowrap align=right>63</td>
+<td nowrap align=right>69</td>
+<td nowrap align=right>60.32</td>
+<td nowrap align=right>15.87</td>
+<td nowrap align=right>26.09</td>
+<td nowrap align=right>18.89</td>
+<td nowrap align=right>46.25</td>
+<td nowrap align=right>34.73</td>
+<td nowrap align=right>52.62</td>
+<td nowrap align=right>6.28</td>
+<td nowrap align=right>9.66</td>
+<td nowrap align=right>12.13</td>
+<td nowrap align=right>45.65</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>10</td>
+<td nowrap align=right>89</td>
+<td nowrap align=right>58</td>
+<td nowrap align=right>87</td>
+<td nowrap align=right>57</td>
+<td nowrap align=right>54.02</td>
+<td nowrap align=right>4.60</td>
+<td nowrap align=right>47.37</td>
+<td nowrap align=right>32.84</td>
+<td nowrap align=right>50.68</td>
+<td nowrap align=right>39.23</td>
+<td nowrap align=right>71.39</td>
+<td nowrap align=right>7.44</td>
+<td nowrap align=right>6.81</td>
+<td nowrap align=right>10.42</td>
+<td nowrap align=right>51.02</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>11</td>
+<td nowrap align=right>63</td>
+<td nowrap align=right>64</td>
+<td nowrap align=right>60</td>
+<td nowrap align=right>62</td>
+<td nowrap align=right>48.33</td>
+<td nowrap align=right>6.67</td>
+<td nowrap align=right>32.26</td>
+<td nowrap align=right>38.83</td>
+<td nowrap align=right>44.22</td>
+<td nowrap align=right>32.73</td>
+<td nowrap align=right>70.97</td>
+<td nowrap align=right>2.65</td>
+<td nowrap align=right>5.28</td>
+<td nowrap align=right>4.47</td>
+<td nowrap align=right>57.05</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>12</td>
+<td nowrap align=right>80</td>
+<td nowrap align=right>85</td>
+<td nowrap align=right>69</td>
+<td nowrap align=right>79</td>
+<td nowrap align=right>46.38</td>
+<td nowrap align=right>2.90</td>
+<td nowrap align=right>29.11</td>
+<td nowrap align=right>44.84</td>
+<td nowrap align=right>54.01</td>
+<td nowrap align=right>42.58</td>
+<td nowrap align=right>86.94</td>
+<td nowrap align=right>2.70</td>
+<td nowrap align=right>5.00</td>
+<td nowrap align=right>6.13</td>
+<td nowrap align=right>82.32</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>13</td>
+<td nowrap align=right>65</td>
+<td nowrap align=right>73</td>
+<td nowrap align=right>59</td>
+<td nowrap align=right>62</td>
+<td nowrap align=right>28.81</td>
+<td nowrap align=right>0.00</td>
+<td nowrap align=right>9.68</td>
+<td nowrap align=right>78.37</td>
+<td nowrap align=right>58.08</td>
+<td nowrap align=right>46.64</td>
+<td nowrap align=right>124.75</td>
+<td nowrap align=right>6.76</td>
+<td nowrap align=right>5.57</td>
+<td nowrap align=right>12.84</td>
+<td nowrap align=right>126.34</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>14</td>
+<td nowrap align=right>86</td>
+<td nowrap align=right>108</td>
+<td nowrap align=right>70</td>
+<td nowrap align=right>96</td>
+<td nowrap align=right>10.00</td>
+<td nowrap align=right>1.43</td>
+<td nowrap align=right>8.33</td>
+<td nowrap align=right>108.76</td>
+<td nowrap align=right>42.47</td>
+<td nowrap align=right>31.07</td>
+<td nowrap align=right>139.94</td>
+<td nowrap align=right>2.82</td>
+<td nowrap align=right>6.35</td>
+<td nowrap align=right>11.61</td>
+<td nowrap align=right>153.32</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>15</td>
+<td nowrap align=right>75</td>
+<td nowrap align=right>54</td>
+<td nowrap align=right>60</td>
+<td nowrap align=right>46</td>
+<td nowrap align=right>11.67</td>
+<td nowrap align=right>1.67</td>
+<td nowrap align=right>19.57</td>
+<td nowrap align=right>128.02</td>
+<td nowrap align=right>33.70</td>
+<td nowrap align=right>22.20</td>
+<td nowrap align=right>150.53</td>
+<td nowrap align=right>3.17</td>
+<td nowrap align=right>6.38</td>
+<td nowrap align=right>10.74</td>
+<td nowrap align=right>125.22</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>16</td>
+<td nowrap align=right>59</td>
+<td nowrap align=right>66</td>
+<td nowrap align=right>51</td>
+<td nowrap align=right>59</td>
+<td nowrap align=right>9.80</td>
+<td nowrap align=right>1.96</td>
+<td nowrap align=right>20.34</td>
+<td nowrap align=right>142.18</td>
+<td nowrap align=right>29.31</td>
+<td nowrap align=right>17.87</td>
+<td nowrap align=right>160.10</td>
+<td nowrap align=right>2.49</td>
+<td nowrap align=right>7.19</td>
+<td nowrap align=right>6.12</td>
+<td nowrap align=right>122</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>17</td>
+<td nowrap align=right>57</td>
+<td nowrap align=right>57</td>
+<td nowrap align=right>52</td>
+<td nowrap align=right>55</td>
+<td nowrap align=right>19.23</td>
+<td nowrap align=right>11.54</td>
+<td nowrap align=right>12.73</td>
+<td nowrap align=right>104.94</td>
+<td nowrap align=right>28.25</td>
+<td nowrap align=right>16.62</td>
+<td nowrap align=right>121.56</td>
+<td nowrap align=right>2.40</td>
+<td nowrap align=right>9.14</td>
+<td nowrap align=right>7.29</td>
+<td nowrap align=right>117.45</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>18</td>
+<td nowrap align=right>64</td>
+<td nowrap align=right>74</td>
+<td nowrap align=right>57</td>
+<td nowrap align=right>61</td>
+<td nowrap align=right>21.05</td>
+<td nowrap align=right>5.26</td>
+<td nowrap align=right>11.48</td>
+<td nowrap align=right>106.46</td>
+<td nowrap align=right>28.88</td>
+<td nowrap align=right>17.39</td>
+<td nowrap align=right>124.07</td>
+<td nowrap align=right>1.92</td>
+<td nowrap align=right>6.40</td>
+<td nowrap align=right>3.74</td>
+<td nowrap align=right>117.33</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>19</td>
+<td nowrap align=right>67</td>
+<td nowrap align=right>36</td>
+<td nowrap align=right>69</td>
+<td nowrap align=right>34</td>
+<td nowrap align=right>21.74</td>
+<td nowrap align=right>8.70</td>
+<td nowrap align=right>23.53</td>
+<td nowrap align=right>64.75</td>
+<td nowrap align=right>25</td>
+<td nowrap align=right>13.48</td>
+<td nowrap align=right>78.29</td>
+<td nowrap align=right>1.74</td>
+<td nowrap align=right>6.94</td>
+<td nowrap align=right>9.18</td>
+<td nowrap align=right>75.97</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>20</td>
+<td nowrap align=right>17</td>
+<td nowrap align=right>50</td>
+<td nowrap align=right>20</td>
+<td nowrap align=right>48</td>
+<td nowrap align=right>45.00</td>
+<td nowrap align=right>15.00</td>
+<td nowrap align=right>37.50</td>
+<td nowrap align=right>45.25</td>
+<td nowrap align=right>20.80</td>
+<td nowrap align=right>9.49</td>
+<td nowrap align=right>54.65</td>
+<td nowrap align=right>1.44</td>
+<td nowrap align=right>6.61</td>
+<td nowrap align=right>2.27</td>
+<td nowrap align=right>61.50</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>21</td>
+<td nowrap align=right>39</td>
+<td nowrap align=right>21</td>
+<td nowrap align=right>41</td>
+<td nowrap align=right>20</td>
+<td nowrap align=right>21.95</td>
+<td nowrap align=right>17.07</td>
+<td nowrap align=right>45.00</td>
+<td nowrap align=right>58.88</td>
+<td nowrap align=right>19.07</td>
+<td nowrap align=right>7.72</td>
+<td nowrap align=right>66.49</td>
+<td nowrap align=right>1</td>
+<td nowrap align=right>6.30</td>
+<td nowrap align=right>0.90</td>
+<td nowrap align=right>47.75</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>22</td>
+<td nowrap align=right>7</td>
+<td nowrap align=right>13</td>
+<td nowrap align=right>13</td>
+<td nowrap align=right>13</td>
+<td nowrap align=right>69.23</td>
+<td nowrap align=right>53.85</td>
+<td nowrap align=right>61.54</td>
+<td nowrap align=right>9.85</td>
+<td nowrap align=right>17.15</td>
+<td nowrap align=right>5.97</td>
+<td nowrap align=right>15.77</td>
+<td nowrap align=right>2.31</td>
+<td nowrap align=right>4.11</td>
+<td nowrap align=right>3.38</td>
+<td nowrap align=right>82.69</td>
+</tr>
+<tr>
+<td nowrap style=text-align:right;>23</td>
+<td nowrap align=right>4</td>
+<td nowrap align=right>12</td>
+<td nowrap align=right>7</td>
+<td nowrap align=right>14</td>
+<td nowrap align=right>57.14</td>
+<td nowrap align=right>57.14</td>
+<td nowrap align=right>57.14</td>
+<td nowrap align=right>29</td>
+<td nowrap align=right>15.86</td>
+<td nowrap align=right>4.54</td>
+<td nowrap align=right>32.57</td>
+<td nowrap align=right>0.50</td>
+<td nowrap align=right>4.06</td>
+<td nowrap align=right>3</td>
+<td nowrap align=right>43.07</td>
+</tr>
+<tr>
+<td class="table_footer_lead" colspan=1>Total :</td>
+<td class="table_footer">1,048</td>
+<td class="table_footer">1,047</td>
+<td class="table_footer">986</td>
+<td class="table_footer">980</td>
+<td class="table_footer">41.28</td>
+<td class="table_footer">8.52</td>
+<td class="table_footer">32.96</td>
+<td class="table_footer">60.86</td>
+<td class="table_footer">40.84</td>
+<td class="table_footer">29.37</td>
+<td class="table_footer">89.68</td>
+<td class="table_footer">3.34</td>
+<td class="table_footer">7.00</td>
+<td class="table_footer">8.50</td>
+<td class="table_footer">79.99</td>
+</tr>
+</table>
+<p class="info">Report created on Wed Jul 22 16:10:41 EDT 2026<br>Sources: Aviation System Performance Metrics (ASPM)
+<br><a href="javascript:ExcelHTML();">HTML for Excel</a>&nbsp;&nbsp;<a href="javascript:ExcelCSV();">CSV for Excel</a></p>
+</body></html>
