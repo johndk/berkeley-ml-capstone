@@ -20,7 +20,7 @@ The project has three base prediction goals and one stretch goal:
 1. **Model 1:** For a flight departing from JFK, ORD, or ATL, predict before pushback whether the flight departs at least 15 minutes late.
 2. **Model 2A:** For a flight arriving at JFK, ORD, or ATL, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
 3. **Model 2B:** For a flight arriving at JFK, ORD, or ATL, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
-4. **Stretch Model 2C:** For a flight arriving at JFK, ORD, or ATL, update the arrival-delay prediction immediately after takeoff at the flight origin, using the actual departure, taxi-out, and takeoff information.
+4. **Stretch Model 2C:** For a flight arriving at JFK, ORD, or ATL, predict immediately after takeoff at the flight origin whether it arrives at least 15 minutes late, using the actual departure, taxi-out, and takeoff information.
 
 The first two models use only information available before pushback. The third adds the actual departure time
 and departure delay. The stretch model adds information that becomes known at takeoff, including taxi-out time.
@@ -61,11 +61,12 @@ Flight delays create costs and disruption for passengers, airlines, and airports
 can help airlines communicate with passengers, adjust staffing and gate plans, and prepare for possible missed connections. 
 Airports can also use this information to better understand when congestion or weather is likely to affect operations.
 
-This project asks three practical questions:
+This project asks three core questions and one stretch question:
 
 - Can a departure delay of 15 minutes or more be identified before pushback?
 - Can an arrival delay of 15 minutes or more be identified before pushback?
 - How much does the arrival prediction improve once the actual departure delay is known?
+- As a stretch goal, how much more does the arrival prediction improve once taxi-out and takeoff information is known?
 
 The analysis also compares JFK, ORD, and ATL because the conditions associated with delay may differ by airport. 
 As emphasized by Snell, Zoutendijk, and Pineda, a useful result does more than produce a yes-or-no answer. It 
@@ -533,3 +534,50 @@ ASPM columns receive an `ASPM_` prefix during the merge so their origin remains 
 | `DATE` | `ASPM_DATE` |
 
 The merge also adds `ASPM_LOOKUP_DATE`, the preceding full hour requested for each flight, and `ASPM_AGE_MINUTES`, the difference between the scheduled flight time and the matched ASPM observation.
+
+## NOAA Column Selection and Dictionary
+
+The NOAA data describes weather observed near each airport. Only hourly fields that are useful for the delay models are kept. Daily and monthly summaries are dropped because they do not describe conditions at a specific prediction time and may include weather that occurred later.
+
+Each model uses the most recent NOAA observation available by its prediction time. Later observations are excluded to prevent data leakage. Missing weather values must also be handled with a past-only method so that an earlier record is not filled using future weather.
+
+### NOAA fields retained before merge
+
+| Column | Plain-English description | Why it is retained |
+|---|---|---|
+| `DATE` | Date and time of the weather observation. | Used to match each flight with weather already observed by the prediction time. |
+| `HourlyDewPointTemperature` | Temperature at which moisture begins to condense. | Helps describe how much moisture is in the air. |
+| `HourlyDryBulbTemperature` | Air temperature reported by the station. | Provides the main temperature measurement. |
+| `HourlyPrecipitation` | Amount of precipitation reported for the observation period. | Measures the amount of rain or melted precipitation. Trace amounts are kept as a small positive value. |
+| `HourlyRelativeHumidity` | Relative humidity percentage. | Describes how moist the air is. |
+| `HourlyVisibility` | Distance that can be seen clearly from the station. | Poor visibility can affect airport operations. |
+| `HourlyWindSpeed` | Reported wind speed. | Strong winds can affect runway and flight operations. |
+| `Rain` | Indicates that rain was reported. | Provides a simple rain feature. |
+| `Drizzle` | Indicates that drizzle was reported. | Separates drizzle from other precipitation. |
+| `Snow` | Indicates that snow was reported. | Identifies snow conditions that may affect operations. |
+| `Fog` | Indicates that fog was reported. | Identifies an important cause of poor visibility. |
+| `Mist` | Indicates that mist was reported. | Identifies a lighter visibility restriction. |
+| `Thunderstorm` | Indicates that a thunderstorm was reported. | Identifies severe weather that may disrupt flights. |
+| `FreezingPrecip` | Indicates that the weather report contains a freezing-condition code. | Identifies freezing weather that may affect aircraft and runways. |
+| `Showers` | Indicates that showers were reported. | Distinguishes showers from other weather reports. |
+| `PrecipOccurred` | Indicates that precipitation is supported by either a measured amount or a rain, snow, or drizzle report. | Combines several sources into one general precipitation feature. |
+| `WindX` | East-west part of the wind, calculated from wind speed and direction. | Represents wind direction without the artificial break between 0 and 360 degrees. |
+| `WindY` | North-south part of the wind, calculated from wind speed and direction. | Works with `WindX` to represent both wind direction and strength. |
+
+`HourlyPresentWeatherType` is used to create the weather indicators and is then removed. `HourlyWindDirection` is used with wind speed to create `WindX` and `WindY`, then removed. These derived fields are easier for a model to use than the original coded weather text and compass degrees.
+
+### NOAA fields dropped during processing
+
+| Field group | Quick description | Why it is dropped |
+|---|---|---|
+| Station and report metadata | Station ID, name, location, elevation, report type, and source. | Each file already represents a selected airport weather station, so these fields add little useful flight-level information. |
+| Other hourly measurements | Pressure, sky condition, wet-bulb temperature, and wind-gust fields. | Left out to keep the project focused on a smaller core weather set and avoid additional missing-data and parsing work. |
+| Sunrise and sunset | Daily sunrise and sunset times. | Calendar information can be derived later if it becomes useful. |
+| Daily summaries | Daily averages, totals, minimums, maximums, snow, wind, and weather summaries. | They mix daily and hourly detail and may include weather observed after the prediction time. |
+| Monthly and climate summaries | Monthly averages, totals, extremes, degree days, normals, and counts of weather days. | They describe a month or climate period rather than conditions near an individual flight. |
+| Short-duration precipitation summaries | Maximum precipitation amounts and ending times for several durations. | These are sparse summary extremes rather than regular observations near the flight. |
+| Backup-station, equipment, and remarks fields | Backup location details, equipment history, and coded remarks. | They are metadata or require extra processing outside the capstone scope. |
+
+### NOAA names after merge
+
+During the merge, `DATE` becomes `NOAA_DATE` so it is not confused with the flight timestamp. The weather feature names remain unchanged. `NOAA_AGE_MINUTES` records how old the matched weather observation is at the relevant flight time.
