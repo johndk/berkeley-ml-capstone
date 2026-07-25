@@ -79,8 +79,9 @@ can be explained in a useful way.
 
 ## Data Understanding
 
-The project brings together flight, airport, and weather data. The record of analysis is one flight departing from JFK, 
-ORD, or ATL. Airport and weather records are added to each flight without changing this one-row-per-flight structure.
+The project brings together flight, airport, and weather data. Each record represents one flight. The airport of interest
+is the origin for Model 1 and the destination for Models 2A, 2B, and the possible Model 2C. Airport and weather records
+are added without changing this one-row-per-flight structure.
 
 ### Data Sources
 
@@ -105,6 +106,8 @@ The exact division of the years and flights into training, development, and fina
 The split preserves time order so that the models are trained on earlier flights and evaluated 
 on later flights they have not seen. Files use a consistent `AIRPORT_YEAR.csv` naming pattern so that the same processing 
 steps can be applied to each airport and year.
+
+## Data Preparation
 
 ### Data Directory
 
@@ -217,13 +220,50 @@ the origin or destination, and combines the matching records into one annual fil
 the 12 monthly files under `data/bts/raw/2019/` are used to produce `ATL.csv`, `JFK.csv`, and `ORD.csv` in that same 
 directory. These annual airport files become the inputs to the BTS processing notebook.
 
+ASPM data is collected with `download_aspm_hourly_v3.py`, which requests one FAA ASPM hourly report for each airport and
+calendar day. The year-specific shell scripts supply the date range and airport code. Each run saves the original daily
+HTML responses under `raw_html/` and combines the extracted hourly records into one annual airport CSV, such as
+`aspm_2019_ATL.csv`. Keeping the HTML responses preserves the original reports while the annual CSV becomes the input to
+the ASPM processing notebook.
+
+NOAA Local Climatological Data is downloaded as one annual CSV for the weather station selected to represent each airport.
+Station `72219013874` represents ATL, `72530094846` represents ORD, and `74486094789` represents JFK. The files are grouped
+by year under `data/noaa/raw/`; for example, the three station files in `2019/` provide the raw weather observations used
+to produce the ATL, ORD, and JFK inputs for the NOAA processing notebook.
+
 #### Processed
 
-The `processed` folders contain the useful source columns in a more consistent format.
+The `processed` folders contain smaller working files with the records and source columns needed by the project. Processing
+removes empty, redundant, or out-of-scope fields before the more detailed cleaning checks begin.
+
+The work differs slightly by source. BTS processing removes cancelled and diverted flights and keeps the schedule,
+route, and outcome fields needed for analysis. ASPM processing keeps the airport and time identifiers together with
+scheduled hourly arrivals and departures. NOAA processing keeps the selected hourly weather measurements and removes
+rows that contain no usable weather observations.
 
 #### Cleaned
 
-The `cleaned` folders contain data that has been checked for missing values, duplicate records, data types, and time ordering.
+The `cleaned` folders contain the standardized source files used by the merge step. Cleaning converts or constructs
+timestamps, sorts the records, and checks the expected columns, missing values, duplicate keys, numeric ranges, category
+codes, time coverage, and outcome consistency. Validation checks report possible problems without changing otherwise
+valid records.
+
+NOAA requires some additional preparation. Trace precipitation is converted to a small numeric value, weather codes are
+turned into plain condition indicators, and wind direction and speed are used to create `WindX` and `WindY`. Missing
+continuous measurements are also filled during the current cleaning process. Before modeling, this fill method must be
+limited to weather already observed at the relevant prediction time so a later observation cannot influence an earlier
+flight.
+
+The cleaned BTS, ASPM, and NOAA airport-year files remain separate until the merge step. The merge keeps one row per
+flight and adds the appropriate scheduled airport demand and time-matched weather observation.
+
+Cleaning a field does not automatically make it a valid predictor. Some retained BTS fields are outcomes, validation
+fields, or operating events available only to a later model. Fields published too late to support the prediction, such
+as ASPM's realized performance measures, are removed. The model-ready files later enforce the exact information
+available at each prediction time and prevent time leakage.
+
+Appendix A describes the retained and removed columns, source-specific transformations, and prediction-time restrictions
+in more detail.
 
 #### Merged
 
@@ -265,7 +305,7 @@ Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘       �
            Before pushback             Before pushback              After pushback
 ```
 
-Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The cleaned sources are merged into a single flight-level dataset. Feature engineering creates additional values from the existing dates, times, routes, congestion measures, and weather conditions. The resulting data is then separated into the three model datasets according to what information is allowed at each prediction time.
+Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The cleaned sources are merged into a single flight-level dataset. Feature engineering creates additional values from the existing dates, times, routes, congestion measures, and weather conditions. The resulting data is then separated into the three base model datasets according to what information is allowed at each prediction time. A fourth projection is added if stretch Model 2C is implemented.
 
 ### Matching Records by Time
 
@@ -280,10 +320,9 @@ This time-based matching prevents a model from using airport conditions or weath
 | Model 1 | `DepDel15` | Flight schedule, earlier airport conditions, and earlier weather observations |
 | Model 2A | `ArrDel15` | The same information available to Model 1 |
 | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
+| Stretch Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
 
-The merged data is explored and expanded with features that summarize time of day, season, route, distance, congestion, and weather. Information recorded after takeoff or arrival is not included as a model input.
-
-## Data Preparation
+The merged data is explored and expanded with features that summarize time of day, season, route, distance, congestion, and weather. Each model excludes information recorded after its stated prediction time.
 
 ## Modeling
 
