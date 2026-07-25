@@ -14,11 +14,18 @@ TARGET_COLUMNS = ("DepDel15", "ArrDel15")
 DATE_COLUMNS = (
     "FlightDate",
     "DATE",
-    "ASPM_LOOKUP_DATE",
-    "ASPM_ReportDate",
-    "ASPM_DATE",
+    "ASPM_PREVIOUS_LOOKUP_DATE",
+    "ASPM_CURRENT_LOOKUP_DATE",
+    "ASPM_NEXT_LOOKUP_DATE",
+    "ASPM_PREVIOUS_REPORT_DATE",
+    "ASPM_CURRENT_REPORT_DATE",
+    "ASPM_NEXT_REPORT_DATE",
+    "ASPM_PREVIOUS_DATE",
+    "ASPM_CURRENT_DATE",
+    "ASPM_NEXT_DATE",
     "NOAA_DATE",
 )
+ASPM_PERIODS = ("PREVIOUS", "CURRENT", "NEXT")
 WEATHER_FLAGS = (
     "Rain",
     "Drizzle",
@@ -96,12 +103,32 @@ def add_eda_columns(frame: pd.DataFrame) -> pd.DataFrame:
             labels=["Overnight", "Morning", "Afternoon", "Evening", "Late night"],
         )
 
-    traffic_columns = {"ASPM_Scheduled_Departures", "ASPM_Scheduled_Arrivals"}
-    if traffic_columns.issubset(data.columns):
-        data["ASPM_Total_Scheduled_Traffic"] = (
-            data["ASPM_Scheduled_Departures"]
-            + data["ASPM_Scheduled_Arrivals"]
-        )
+    period_total_columns = []
+    for period in ASPM_PERIODS:
+        departures = f"ASPM_{period}_SCHEDULED_DEPARTURES"
+        arrivals = f"ASPM_{period}_SCHEDULED_ARRIVALS"
+        total = f"ASPM_{period}_TOTAL_SCHEDULED_TRAFFIC"
+
+        if {departures, arrivals}.issubset(data.columns):
+            data[total] = data[departures] + data[arrivals]
+            period_total_columns.append(total)
+
+    three_hour_departures = [
+        f"ASPM_{period}_SCHEDULED_DEPARTURES" for period in ASPM_PERIODS
+    ]
+    three_hour_arrivals = [
+        f"ASPM_{period}_SCHEDULED_ARRIVALS" for period in ASPM_PERIODS
+    ]
+    if set(three_hour_departures + three_hour_arrivals).issubset(data.columns):
+        data["ASPM_THREE_HOUR_SCHEDULED_DEPARTURES"] = data[
+            three_hour_departures
+        ].sum(axis=1)
+        data["ASPM_THREE_HOUR_SCHEDULED_ARRIVALS"] = data[
+            three_hour_arrivals
+        ].sum(axis=1)
+        data["ASPM_THREE_HOUR_TOTAL_SCHEDULED_TRAFFIC"] = data[
+            period_total_columns
+        ].sum(axis=1)
 
     present_weather_flags = [
         column for column in WEATHER_FLAGS if column in data.columns

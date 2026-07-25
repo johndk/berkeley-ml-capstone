@@ -15,11 +15,11 @@ not use the single-dataset configuration.
 ## Notebooks
 
 1. `01_data_quality_and_targets.ipynb` checks structure, missing values,
-   duplicates, target balance, and the age of matched ASPM and NOAA records.
+   duplicates, target balance, ASPM period offsets, and NOAA observation age.
 2. `02_delay_patterns.ipynb` explores when delays occur and how delay rates
    differ by airline, destination, distance, and scheduled time.
-3. `03_weather_and_congestion.ipynb` examines weather, airport traffic,
-   congestion, and their relationship with departure and arrival delays.
+3. `03_weather_and_congestion.ipynb` examines weather, planned traffic in the
+   previous, current, and next hours, and their relationship with delays.
 4. `04_airport_year_comparison.ipynb` compares all available airports and
    years using memory-conscious summaries and samples.
 

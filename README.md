@@ -309,7 +309,11 @@ Processing first makes each source easier to use. Cleaning then checks the quali
 
 ### Matching Records by Time
 
-The scheduled departure date and time, stored in `DATE`, provides the main time for each BTS flight. Each flight is matched with an ASPM hourly schedule record and the most recent NOAA observation available before its scheduled departure. The merged data keeps the source timestamps and calculates the age of each matched observation in minutes.
+The scheduled departure date and time, stored in `DATE`, provides the main time for each BTS flight. Each flight is matched
+with ASPM schedule records for the previous, current, and next clock hours. The next-hour values are planned counts known
+ahead of time, not future operating results. Each flight is also matched with the most recent NOAA observation available
+before its scheduled departure. The merged data keeps the source timestamps and timing differences so the matches can be
+checked.
 
 This time-based matching prevents a model from using airport conditions or weather observations that occurred after the prediction was made. It also allows the age of the matched information to be checked before modeling.
 
@@ -561,18 +565,20 @@ These operational fields could be used in a separate historical analysis, but th
 
 ### ASPM names after merge
 
-ASPM columns receive an `ASPM_` prefix during the merge so their origin remains clear in the combined dataset. Spaces are replaced with underscores.
+Each ASPM field receives a prefix identifying the previous, current, or next clock hour. Spaces are replaced with
+underscores and names are capitalized consistently.
 
-| Before merge | After merge |
-|---|---|
-| `airport` | `ASPM_Airport` |
-| `report_date` | `ASPM_ReportDate` |
-| `Hour` | `ASPM_Hour` |
-| `Scheduled Departures` | `ASPM_Scheduled_Departures` |
-| `Scheduled Arrivals` | `ASPM_Scheduled_Arrivals` |
-| `DATE` | `ASPM_DATE` |
+| Before merge | Previous hour | Current hour | Next hour |
+|---|---|---|---|
+| `airport` | `ASPM_PREVIOUS_AIRPORT` | `ASPM_CURRENT_AIRPORT` | `ASPM_NEXT_AIRPORT` |
+| `report_date` | `ASPM_PREVIOUS_REPORT_DATE` | `ASPM_CURRENT_REPORT_DATE` | `ASPM_NEXT_REPORT_DATE` |
+| `Hour` | `ASPM_PREVIOUS_HOUR` | `ASPM_CURRENT_HOUR` | `ASPM_NEXT_HOUR` |
+| `Scheduled Departures` | `ASPM_PREVIOUS_SCHEDULED_DEPARTURES` | `ASPM_CURRENT_SCHEDULED_DEPARTURES` | `ASPM_NEXT_SCHEDULED_DEPARTURES` |
+| `Scheduled Arrivals` | `ASPM_PREVIOUS_SCHEDULED_ARRIVALS` | `ASPM_CURRENT_SCHEDULED_ARRIVALS` | `ASPM_NEXT_SCHEDULED_ARRIVALS` |
+| `DATE` | `ASPM_PREVIOUS_DATE` | `ASPM_CURRENT_DATE` | `ASPM_NEXT_DATE` |
 
-The merge also adds `ASPM_LOOKUP_DATE`, the preceding full hour requested for each flight, and `ASPM_AGE_MINUTES`, the difference between the scheduled flight time and the matched ASPM observation.
+The merge also keeps a requested lookup timestamp and an offset from scheduled departure for each period. The next-hour
+offset is positive because that record describes planned demand after the flight's departure hour begins.
 
 ## NOAA Column Selection and Dictionary
 
