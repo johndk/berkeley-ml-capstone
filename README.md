@@ -1,4 +1,4 @@
-**ATTENTION: Note to reviewer. This submission is in progress. Expected completion end-of-day Friday, July 24, 2026.** 
+**ATTENTION: This submission is in progress. Expected completion Saturday, July 25, 2026.** 
 
 # Capstone Project - Berkeley ML and AI 
 ## Initial Report and Exploratory Data Analysis
