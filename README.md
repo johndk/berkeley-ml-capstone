@@ -5,25 +5,25 @@
 
 ## Overview
 
-This capstone investigates whether machine learning can predict significant delays for individual flights departing from 
-or arriving at three major United States airports:
+This capstone investigates whether machine learning can predict significant delays for individual domestic flights
+departing from or arriving at:
 
-- John F. Kennedy International Airport (JFK)
-- Chicago O'Hare International Airport (ORD)
-- Hartsfield-Jackson Atlanta International Airport (ATL)
+- **Primary airport:** John F. Kennedy International Airport (JFK)
+- **Optional airport stretch goals:** Chicago O'Hare International Airport (ORD) and Hartsfield-Jackson Atlanta
+  International Airport (ATL)
 
 A significant delay is defined as a departure or arrival delay of 15 minutes or more. The project also explores 
 which flight, airport, and weather conditions are most closely associated with delays.
 
-The project has three base prediction goals and one stretch goal:
+The primary JFK analysis has four prediction goals:
 
-1. **Model 1:** For a flight departing from JFK, ORD, or ATL, predict before pushback whether the flight departs at least 15 minutes late.
-2. **Model 2A:** For a flight arriving at JFK, ORD, or ATL, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
-3. **Model 2B:** For a flight arriving at JFK, ORD, or ATL, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
-4. **Stretch Model 2C:** For a flight arriving at JFK, ORD, or ATL, predict immediately after takeoff at the flight origin whether it arrives at least 15 minutes late, using the actual departure, taxi-out, and takeoff information.
+1. **Model 1:** For a flight departing from JFK, predict before pushback whether the flight departs at least 15 minutes late.
+2. **Model 2A:** For a flight arriving at JFK, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
+3. **Model 2B:** For a flight arriving at JFK, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
+4. **Model 2C:** For a flight arriving at JFK, predict immediately after takeoff at the flight origin whether it arrives at least 15 minutes late, using the actual departure, taxi-out, and takeoff information.
 
 The first two models use only information available before pushback. The third adds the actual departure time
-and departure delay. The stretch model adds information that becomes known at takeoff, including taxi-out time.
+and departure delay. The fourth model adds information that becomes known at takeoff, including taxi-out time.
 These stages show how arrival predictions improve as new operating information becomes available.
 
 Each model follows a clear prediction time. A field is included only if it would be known at that time; information
@@ -53,7 +53,8 @@ The work includes:
 
 The project focuses on individual flights. Aircraft rotations, previous-flight chains, and delay spread through an airline 
 network are out of scope. The approach is informed by the flight-level delay research of Snell, Zoutendijk, and Pineda. 
-The final analysis compares both model performance and the factors associated with delays across JFK, ORD, and ATL.
+The final analysis focuses on model performance and the factors associated with delays at JFK. Repeating the analysis
+for ORD and ATL, and comparing results across airports, remains an optional stretch extension.
 
 ## Business Understanding
 
@@ -61,17 +62,17 @@ Flight delays create costs and disruption for passengers, airlines, and airports
 can help airlines communicate with passengers, adjust staffing and gate plans, and prepare for possible missed connections. 
 Airports can also use this information to better understand when congestion or weather is likely to affect operations.
 
-This project asks three core questions and one stretch question:
+This project asks four core questions:
 
 - Can a departure delay of 15 minutes or more be identified before pushback?
 - Can an arrival delay of 15 minutes or more be identified before pushback?
 - How much does the arrival prediction improve once the actual departure delay is known?
-- As a stretch goal, how much more does the arrival prediction improve once taxi-out and takeoff information is known?
+- How much more does the arrival prediction improve once taxi-out and takeoff information is known?
 
-The analysis also compares JFK, ORD, and ATL because the conditions associated with delay may differ by airport. 
-As emphasized by Snell, Zoutendijk, and Pineda, a useful result does more than produce a yes-or-no answer. It 
-provides a reliable estimate of delay risk and clearly shows which schedule, airport, and weather conditions influence the 
-prediction.
+The primary analysis examines JFK. If time permits, the same workflow can be applied to ORD and ATL to test whether the
+conditions associated with delay differ by airport. As emphasized by Snell, Zoutendijk, and Pineda, a useful result does
+more than produce a yes-or-no answer. It provides a reliable estimate of delay risk and clearly shows which schedule,
+airport, and weather conditions influence the prediction.
 
 The models are intended as decision-support tools, not as proof that a particular factor caused a delay. Success is 
 judged by how well the models identify delayed flights, how often their warnings are correct, and whether their results 
@@ -80,7 +81,7 @@ can be explained in a useful way.
 ## Data Understanding
 
 The project brings together flight, airport, and weather data. Each record represents one flight. The airport of interest
-is the origin for Model 1 and the destination for Models 2A, 2B, and the possible Model 2C. Airport and weather records
+is the origin for Model 1 and the destination for Models 2A, 2B, and 2C. Airport and weather records
 are added without changing this one-row-per-flight structure.
 
 ### Data Sources
@@ -97,15 +98,16 @@ describes scheduled airport demand, and NOAA describes the weather observed befo
 
 ### Data Coverage
 
-The project is designed to compare three airports—JFK, ORD, and ATL—using data from 2019, 2023, and 2024. These years 
-were selected to represent periods before and after the COVID-19 pandemic when the airports were operating at or near 
-normal capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after the 
-major pandemic-related disruptions had passed.
+The primary modeling population consists of domestic flights departing from or arriving at JFK in 2019, 2023, and 2024.
+These years were selected to represent periods before and after the COVID-19 pandemic when the airport was operating at
+or near normal capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after
+the major pandemic-related disruptions had passed. Data already collected for ORD and ATL is retained to support the
+optional airport stretch goals.
 
 The exact division of the years and flights into training, development, and final test sets remains to be decided. 
-The split preserves time order so that the models are trained on earlier flights and evaluated 
-on later flights they have not seen. Files use a consistent `AIRPORT_YEAR.csv` naming pattern so that the same processing 
-steps can be applied to each airport and year.
+The split preserves time order so that the models are trained on earlier flights and evaluated
+on later flights they have not seen. Files use a consistent `AIRPORT_YEAR.csv` naming pattern. The primary pipeline uses
+the JFK files; the same processing steps can be applied to ORD and ATL if the airport stretch goals are attempted.
 
 ## Data Preparation
 
@@ -201,10 +203,12 @@ data/
     ├── ATL_2019_m1.csv
     ├── ATL_2019_m2a.csv
     ├── ATL_2019_m2b.csv
+    ├── ATL_2019_m2c.csv
     ├── JFK_2019_m1.csv
     ├── JFK_2019_m2a.csv
     ├── JFK_2019_m2b.csv
-    └── ... same three model files for each airport and year
+    ├── JFK_2019_m2c.csv
+    └── ... same four model files for each airport and year
 ```
 
 The folders represent the main stages of the data:
@@ -267,7 +271,15 @@ in more detail.
 
 #### Merged
 
-The `merged` folder contains one airport-year flight file with the appropriate ASPM and NOAA observations attached.
+The `merged` folder contains one file for each airport and year. Each row represents one completed, non-diverted flight
+departing the selected airport. The original flight-level structure is preserved while planned ASPM arrivals and
+departures for the previous, current, and next clock hours are added. The latest NOAA weather observation available
+before scheduled departure is also attached.
+
+Source timestamps, lookup times, and timing differences remain in the files so the joins and information availability
+can be checked. The merged files support EDA and feature engineering, but they are not model-ready: they still contain
+targets, descriptive outcomes, and operational fields that are unavailable to some models. Appendix A provides the
+complete merged column dictionary and explains the timing and intended use of each field.
 
 #### Features
 
@@ -275,7 +287,10 @@ The `features` folder contains one feature-engineered file for each airport and 
 
 #### Models
 
-The `models` folder contains three model-ready projections for each airport-year feature file. The `_m1`, `_m2a`, and `_m2b` suffixes identify the three prediction scenarios. Each file includes only the predictors and outcome allowed at that prediction time.
+The `models` folder contains four model-ready projections for each airport-year feature file. The `_m1`, `_m2a`, `_m2b`,
+and `_m2c` suffixes identify the four prediction scenarios. Each file includes only the predictors and outcome allowed
+at that prediction time. JFK is the primary modeling airport; ORD and ATL projections are needed only if the airport
+stretch goals are attempted.
 
 The processing and cleaning work is recorded in separate notebooks for BTS, ASPM, and NOAA. A separate merge notebook combines the three cleaned sources.
 
@@ -298,14 +313,17 @@ Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘       �
                                                       ▼
                                          features/AIRPORT_YEAR.csv
                                                       │
-                            ┌─────────────────────────┼─────────────────────────┐
-                            ▼                         ▼                         ▼
-           models/AIRPORT_YEAR_m1.csv  models/AIRPORT_YEAR_m2a.csv  models/AIRPORT_YEAR_m2b.csv
-           Departure delay             Arrival delay                Arrival delay
-           Before pushback             Before pushback              After pushback
+                    ┌─────────────────┬───────────────┼───────────────┬─────────────────┐
+                    ▼                 ▼               ▼               ▼
+     models/AIRPORT_YEAR_m1.csv  models/..._m2a.csv  models/..._m2b.csv  models/..._m2c.csv
+     Departure before pushback   Arrival before      Arrival after      Arrival after
+                                 pushback             pushback           takeoff
 ```
 
-Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The cleaned sources are merged into a single flight-level dataset. Feature engineering creates additional values from the existing dates, times, routes, congestion measures, and weather conditions. The resulting data is then separated into the three base model datasets according to what information is allowed at each prediction time. A fourth projection is added if stretch Model 2C is implemented.
+Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The
+cleaned sources are merged into a single flight-level dataset. Feature engineering creates additional values from the
+existing dates, times, routes, congestion measures, and weather conditions. The resulting data is then separated into
+four model datasets according to what information is allowed at each prediction time.
 
 ### Matching Records by Time
 
@@ -324,7 +342,7 @@ This time-based matching prevents a model from using airport conditions or weath
 | Model 1 | `DepDel15` | Flight schedule, earlier airport conditions, and earlier weather observations |
 | Model 2A | `ArrDel15` | The same information available to Model 1 |
 | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
-| Stretch Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
+| Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
 
 The merged data is explored and expanded with features that summarize time of day, season, route, distance, congestion, and weather. Each model excludes information recorded after its stated prediction time.
 
@@ -373,11 +391,11 @@ airport operational system can observe when they occur. This capstone uses the h
 predictions change at those event times. It therefore makes an explicit deployment assumption: an operational version 
 of Model 2B would receive gate-departure information from a suitable live feed, not wait for the later BTS publication.
 
-`DepTime`, `TaxiOut`, and `WheelsOff` are retained because they mark useful and clearly different information points. `DepTime` is the actual gate-out or pushback time and is eligible for Model 2B. `TaxiOut` is not complete, and `WheelsOff` is not known, until takeoff; both are excluded from Models 1, 2A, and 2B. They remain available for validation, EDA, and a possible stretch Model 2C that would update the arrival-delay prediction immediately after takeoff. Arrival results remain targets or retrospective analysis fields and are never predictors.
+`DepTime`, `TaxiOut`, and `WheelsOff` are retained because they mark useful and clearly different information points. `DepTime` is the actual gate-out or pushback time and is eligible for Model 2B. `TaxiOut` is not complete, and `WheelsOff` is not known, until takeoff; both are excluded from Models 1, 2A, and 2B. They become eligible for Model 2C, which updates the arrival-delay prediction immediately after takeoff. Arrival results remain targets or retrospective analysis fields and are never predictors.
 
 ### Prediction-time eligibility of key BTS operational fields
 
-| Field | Model 1: before pushback | Model 2A: before pushback | Model 2B: after pushback | Possible Model 2C: after takeoff |
+| Field | Model 1: before pushback | Model 2A: before pushback | Model 2B: after pushback | Model 2C: after takeoff |
 |---|---|---|---|---|
 | Scheduled fields such as `CRSDepTime`, `CRSArrTime`, and `CRSElapsedTime` | Eligible | Eligible | Eligible | Eligible |
 | `DepTime` and departure-delay fields derived from gate-out | Excluded: not yet known | Excluded: not yet known | Eligible: gate-out has occurred | Eligible |
@@ -401,9 +419,9 @@ of Model 2B would receive gate-departure information from a suitable live feed, 
 | `Reporting_Airline` | BTS reporting carrier code. | Retained as the main airline identifier. |
 | `Tail_Number` | Aircraft registration or tail number. | Retained for audit and validation. It is not intended as a model feature because aircraft-chain and propagation modeling are out of scope. |
 | `Flight_Number_Reporting_Airline` | Flight number assigned by the reporting carrier. | Retained as a flight identifier and possible categorical feature; it is not treated as a continuous quantity. |
-| `Origin` | Three-letter origin airport code. | Retained to identify flights originating at the airport of interest for Model 1 and the departure airport for Models 2A and 2B. |
+| `Origin` | Three-letter origin airport code. | Retained to identify flights originating at the airport of interest for Model 1 and the departure airport for Models 2A, 2B, and 2C. |
 | `OriginState` | Two-letter state code for the origin airport. | Retained as a compact geographic field. |
-| `Dest` | Three-letter destination airport code. | Retained to identify flights arriving at the airport of interest for Models 2A and 2B. |
+| `Dest` | Three-letter destination airport code. | Retained to identify flights arriving at the airport of interest for Models 2A, 2B, and 2C. |
 | `DestState` | Two-letter state code for the destination airport. | Retained as a compact geographic field. |
 | `CRSDepTime` | Computer Reservation System scheduled departure time in local HHMM form. | Retained because it is known before departure and is used to construct the exact scheduled departure timestamp. |
 | `DepTime` | Actual gate departure time in local HHMM form. | Retained as the event-time field for Model 2B and for descriptive analysis. It is excluded from Models 1 and 2A because gate-out has not occurred when those predictions are made. BTS supplies the historical value; a deployed Model 2B would require an operational gate-out feed. |
@@ -411,10 +429,10 @@ of Model 2B would receive gate-departure information from a suitable live feed, 
 | `DepDelayMinutes` | Nonnegative departure delay in minutes; early departures are recorded as zero. | Retained as a possible Model 2B representation and to validate `DepDelay` and `DepDel15`. It is excluded from pre-pushback predictors and need not be included together with every related departure-delay field. |
 | `DepDel15` | Indicator equal to 1 when departure delay is at least 15 minutes. | Target for Model 1. It is excluded from Model 2A but may be used as a compact post-pushback input for Model 2B because the departure outcome is known at gate-out. It is never used to predict itself in Model 1. |
 | `DepartureDelayGroups` | Departure delay grouped into ordered 15-minute ranges. | Retained for validation, EDA, and possible Model 2B use. It is excluded before pushback and is not automatically included alongside the continuous and binary departure-delay fields. |
-| `TaxiOut` | Minutes from gate departure to wheels-off. | Retained for validation, EDA, and a possible after-takeoff Model 2C. It is excluded from Models 1, 2A, and 2B because the full taxi-out duration is unknown immediately after pushback. |
-| `WheelsOff` | Actual takeoff time in local HHMM form. | Retained for validation, EDA, and a possible after-takeoff Model 2C. It is excluded from Models 1, 2A, and 2B because takeoff occurs after their prediction times. As with `DepTime`, BTS is the historical source rather than the proposed live event feed. |
+| `TaxiOut` | Minutes from gate departure to wheels-off. | Retained as a Model 2C predictor and for validation and EDA. It is excluded from Models 1, 2A, and 2B because the full taxi-out duration is unknown immediately after pushback. |
+| `WheelsOff` | Actual takeoff time in local HHMM form. | Retained as a Model 2C predictor and for validation and EDA. It is excluded from Models 1, 2A, and 2B because takeoff occurs after their prediction times. As with `DepTime`, BTS is the historical source rather than the proposed live event feed. |
 | `CRSArrTime` | Scheduled arrival time in the destination's local HHMM form. | Retained because it is known from the schedule before departure. |
-| `ArrDel15` | Indicator equal to 1 when arrival delay is at least 15 minutes. | Target for Models 2A and 2B, and for a possible Model 2C. It is never used as a predictor because it is known only after arrival. |
+| `ArrDel15` | Indicator equal to 1 when arrival delay is at least 15 minutes. | Target for Models 2A, 2B, and 2C. It is never used as a predictor because it is known only after arrival. |
 | `ArrivalDelayGroups` | Arrival delay grouped into ordered 15-minute ranges. | Retained for target validation and EDA. It is excluded from every model input because it describes the completed arrival outcome. |
 | `CRSElapsedTime` | Scheduled gate-to-gate elapsed time, in minutes. | Retained as a schedule and route characteristic known before departure. |
 | `Distance` | Published distance between origin and destination, in miles. | Retained as a route characteristic. |
@@ -452,7 +470,7 @@ of Model 2B would receive gate-departure information from a suitable live feed, 
 | `CancellationCode` | BTS code for the reason a flight was cancelled. | Dropped after cancelled flights are removed; it is not applicable to the remaining completed flights. |
 | `Diverted` | Indicator that the flight was diverted. | Diverted flights are removed because their scheduled-destination arrival outcome is not comparable with an ordinary completed flight; the now-constant indicator is then dropped. |
 | `ActualElapsedTime` | Actual gate-to-gate elapsed time, in minutes. | Dropped because it is known only after arrival and would leak future operational information. |
-| `AirTime` | Minutes between wheels-off and wheels-on. | Dropped because it is known only after landing and is outside all three prediction times. |
+| `AirTime` | Minutes between wheels-off and wheels-on. | Dropped because it is known only after landing and is outside all four prediction times. |
 | `Flights` | BTS row-count field, normally equal to 1 for each flight record. | Dropped because it is an administrative constant rather than a useful flight characteristic. |
 | `CarrierDelay` | Minutes of arrival delay attributed to the air carrier. | Dropped because delay-cause minutes are assigned after the outcome and directly reveal that a delay occurred. |
 | `WeatherDelay` | Minutes of arrival delay attributed to weather. | Dropped because delay-cause minutes are assigned after the outcome and would leak future information. |
@@ -626,3 +644,201 @@ Each model uses the most recent NOAA observation available by its prediction tim
 ### NOAA names after merge
 
 During the merge, `DATE` becomes `NOAA_DATE` so it is not confused with the flight timestamp. The weather feature names remain unchanged. `NOAA_AGE_MINUTES` records how old the matched weather observation is at the relevant flight time.
+
+## Merged Dataset Column Dictionary
+
+Each merged airport-year file contains one row per completed, non-diverted flight departing the selected airport. The
+current dataset has 71 columns: 28 BTS flight fields, 24 ASPM planned-demand and join-audit fields, and 19 NOAA weather
+and join-audit fields.
+
+The merged dataset is intentionally broader than any model dataset. It contains targets, descriptive outcomes, source
+timestamps, and operational events from different points in time. A column appearing here does not mean it is eligible
+for every model. The later model projections keep only information available at the stated prediction time.
+
+### Merged BTS flight columns
+
+| Column | Description | Use and availability |
+|---|---|---|
+| `Year` | Calendar year of the flight. | Used for coverage checks and time-based data splits. |
+| `Quarter` | Calendar quarter, from 1 through 4. | Calendar field available before departure. |
+| `Month` | Calendar month, from 1 through 12. | Used for seasonal analysis and feature engineering. |
+| `DayofMonth` | Day number within the month. | Calendar field available before departure. |
+| `DayOfWeek` | BTS weekday number, with Monday as 1 and Sunday as 7. | Used to examine and model weekly patterns. |
+| `FlightDate` | Scheduled flight date without the departure time. | Base date available from the schedule. |
+| `Reporting_Airline` | BTS reporting carrier code. | Airline identifier available before departure. |
+| `Tail_Number` | Aircraft registration number. | Retained for audit; not planned as a predictor because aircraft-chain modeling is out of scope. |
+| `Flight_Number_Reporting_Airline` | Flight number assigned by the reporting airline. | Flight identifier and possible categorical feature, not a numeric measurement. |
+| `Origin` | Three-letter departure-airport code. | Identifies the origin and is part of the ASPM join key. |
+| `OriginState` | Two-letter state code for the origin. | Compact origin-location field. |
+| `Dest` | Three-letter destination-airport code. | Identifies the route destination. |
+| `DestState` | Two-letter state code for the destination. | Compact destination-location field. |
+| `CRSDepTime` | Scheduled departure time in local HHMM form. | Known before departure and used to construct the scheduled timestamp. |
+| `DepTime` | Actual gate departure or pushback time in local HHMM form. | Available only after pushback; eligible for Model 2B, not Models 1 or 2A. |
+| `DepDelay` | Actual gate departure minus scheduled departure, in minutes. | Model 1 target information and a possible Model 2B predictor; unavailable before pushback. |
+| `DepDelayMinutes` | Nonnegative departure delay in minutes. | Outcome field used for validation and possible Model 2B input. |
+| `DepDel15` | Indicates a departure delay of at least 15 minutes. | Target for Model 1 and possible post-pushback input for Model 2B. |
+| `DepartureDelayGroups` | Departure delay grouped into 15-minute ranges. | Outcome field for EDA and validation; unavailable before pushback. |
+| `TaxiOut` | Minutes from gate departure to takeoff. | Available only after takeoff; eligible for Model 2C and excluded from Models 1, 2A, and 2B. |
+| `WheelsOff` | Actual takeoff time in local HHMM form. | Available only at takeoff; eligible for Model 2C and excluded from Models 1, 2A, and 2B. |
+| `CRSArrTime` | Scheduled arrival time in the destination's local HHMM form. | Schedule field known before departure. |
+| `ArrDel15` | Indicates an arrival delay of at least 15 minutes. | Target for Models 2A, 2B, and 2C; never a predictor. |
+| `ArrivalDelayGroups` | Arrival delay grouped into 15-minute ranges. | Completed-flight outcome used only for EDA and target validation. |
+| `CRSElapsedTime` | Scheduled gate-to-gate travel time in minutes. | Route and schedule feature known before departure. |
+| `Distance` | Published route distance in miles. | Route feature known before departure. |
+| `DistanceGroup` | BTS distance band based on 250-mile intervals. | Grouped route-length field available before departure. |
+| `DATE` | Scheduled departure timestamp constructed from `FlightDate` and `CRSDepTime`. | Main flight timestamp used for sorting and time-based joins. |
+
+### Merged ASPM planned-demand columns
+
+ASPM supplies planned schedule counts for the previous, current, and next clock hours around scheduled departure. These
+are schedule values known ahead of time, not future operating results. The offset is calculated as the ASPM timestamp
+minus the flight's scheduled departure timestamp.
+
+| Column | Description |
+|---|---|
+| `ASPM_PREVIOUS_LOOKUP_DATE` | Previous full clock hour requested for the ASPM join. |
+| `ASPM_CURRENT_LOOKUP_DATE` | Beginning of the flight's scheduled departure hour requested for the ASPM join. |
+| `ASPM_NEXT_LOOKUP_DATE` | Beginning of the next clock hour requested for the ASPM join. |
+| `ASPM_PREVIOUS_AIRPORT` | Airport code returned by the previous-hour match. |
+| `ASPM_PREVIOUS_REPORT_DATE` | ASPM calendar date associated with the previous-hour record. |
+| `ASPM_PREVIOUS_HOUR` | Hour number of the previous-hour record. |
+| `ASPM_PREVIOUS_SCHEDULED_DEPARTURES` | Flights scheduled to depart during the previous hour. |
+| `ASPM_PREVIOUS_SCHEDULED_ARRIVALS` | Flights scheduled to arrive during the previous hour. |
+| `ASPM_PREVIOUS_DATE` | Timestamp of the matched previous-hour ASPM record. |
+| `ASPM_PREVIOUS_OFFSET_MINUTES` | Previous-hour timestamp relative to scheduled departure; normally −119 through −60 minutes. |
+| `ASPM_CURRENT_AIRPORT` | Airport code returned by the current-hour match. |
+| `ASPM_CURRENT_REPORT_DATE` | ASPM calendar date associated with the current-hour record. |
+| `ASPM_CURRENT_HOUR` | Hour number of the current-hour record. |
+| `ASPM_CURRENT_SCHEDULED_DEPARTURES` | Flights scheduled to depart during the current hour. |
+| `ASPM_CURRENT_SCHEDULED_ARRIVALS` | Flights scheduled to arrive during the current hour. |
+| `ASPM_CURRENT_DATE` | Timestamp of the matched current-hour ASPM record. |
+| `ASPM_CURRENT_OFFSET_MINUTES` | Current-hour timestamp relative to scheduled departure; normally −59 through 0 minutes. |
+| `ASPM_NEXT_AIRPORT` | Airport code returned by the next-hour match. |
+| `ASPM_NEXT_REPORT_DATE` | ASPM calendar date associated with the next-hour record. |
+| `ASPM_NEXT_HOUR` | Hour number of the next-hour record. |
+| `ASPM_NEXT_SCHEDULED_DEPARTURES` | Flights scheduled to depart during the next hour. |
+| `ASPM_NEXT_SCHEDULED_ARRIVALS` | Flights scheduled to arrive during the next hour. |
+| `ASPM_NEXT_DATE` | Timestamp of the matched next-hour ASPM record. |
+| `ASPM_NEXT_OFFSET_MINUTES` | Next-hour timestamp relative to scheduled departure; normally 1 through 60 minutes. |
+
+A few next-hour fields are null for flights in the final hour of December 31 because the requested ASPM record belongs
+to the next annual file. These are documented year-boundary gaps, not zero-traffic hours.
+
+### Merged NOAA weather columns
+
+NOAA supplies the latest weather observation at or before scheduled departure. The observation timestamp and age remain
+in the merged data so future or stale matches can be detected.
+
+| Column | Description | Use and availability |
+|---|---|---|
+| `NOAA_DATE` | Timestamp of the matched NOAA observation. | Must be at or before the relevant prediction time. |
+| `HourlyDewPointTemperature` | Dew-point temperature reported by the station. | Describes moisture in the air. |
+| `HourlyDryBulbTemperature` | Air temperature reported by the station. | Main temperature measurement. |
+| `HourlyPrecipitation` | Precipitation amount for the observation period. | Continuous precipitation measurement; trace amounts use a small positive value. |
+| `HourlyRelativeHumidity` | Relative humidity percentage. | Describes atmospheric moisture. |
+| `HourlyVisibility` | Horizontal visibility reported by the station. | Measures visibility conditions that may affect operations. |
+| `HourlyWindSpeed` | Reported wind speed. | Measures wind strength. |
+| `Rain` | Indicates that rain was reported. | Binary weather-condition feature. |
+| `Drizzle` | Indicates that drizzle was reported. | Binary weather-condition feature. |
+| `Snow` | Indicates that snow was reported. | Binary weather-condition feature. |
+| `Fog` | Indicates that fog was reported. | Binary low-visibility feature. |
+| `Mist` | Indicates that mist was reported. | Binary visibility-condition feature. |
+| `Thunderstorm` | Indicates that a thunderstorm was reported. | Binary severe-weather feature. |
+| `FreezingPrecip` | Indicates that the report contains a freezing-condition code. | Binary freezing-weather feature. |
+| `Showers` | Indicates that showers were reported. | Binary weather-condition feature. |
+| `PrecipOccurred` | Indicates precipitation based on a measured amount or a rain, snow, or drizzle report. | Combined precipitation feature. |
+| `WindX` | East-west wind component calculated from speed and direction. | Model-friendly representation of wind direction and strength. |
+| `WindY` | North-south wind component calculated from speed and direction. | Used with `WindX` to represent the wind vector. |
+| `NOAA_AGE_MINUTES` | Scheduled departure time minus the NOAA observation time, in minutes. | Must be nonnegative and within the allowed weather-match tolerance. |
+
+## Feature Engineering
+
+The initial feature set is intentionally compact and interpretable. It combines schedule, calendar, route, planned airport
+demand, and weather information while preserving one row per flight. This design follows the three primary references:
+Snell combines BTS flight records with hourly NOAA weather and emphasizes schedule, airline, route, traffic, and weather
+variables; Zoutendijk and Mitici use airline, airport, distance, scheduled traffic, weather, and cyclical time encodings;
+and Pineda-Jaramillo et al. combine flight, airport, geographic, and weather data and analyze the features that influence
+the resulting predictions.
+
+The same pre-pushback feature block is intended for Models 1 and 2A and is carried forward into Models 2B and 2C. Model
+2B adds information available once pushback has occurred, and Model 2C adds taxi-out and takeoff information. In the
+table below, **Pre** means all four models, while **2B and 2C** marks information first available at pushback. Raw fields
+such as `Reporting_Airline`, `Origin`, `Dest`, `CRSElapsedTime`, `Distance`, the selected NOAA measurements, `WindX`,
+`WindY`, and `NOAA_AGE_MINUTES` remain candidate inputs even though they are not repeated as engineered features.
+
+### Initial core engineered features
+
+| Feature | Construction and description | Availability | Justification and evidence |
+|---|---|---|---|
+| `SCHED_DEP_MINUTE_OF_DAY` | Convert `CRSDepTime` from HHMM to minutes after local midnight. | Pre | Provides a valid numeric representation of scheduled departure time. Scheduled time is used by all three primary references, and Pineda identifies time-of-day effects as important. |
+| `SCHED_DEP_HOUR` | Integer hour from `SCHED_DEP_MINUTE_OF_DAY`. | Pre | Gives an interpretable grouping for EDA and simple models and supports comparison of peak-hour delay rates. Snell discusses scheduled time blocks and peak-hour patterns. |
+| `SCHED_DEP_TIME_SIN` | `sin(2π * SCHED_DEP_MINUTE_OF_DAY / 1440)`. | Pre | Represents the daily cycle without placing 23:59 far from 00:00. Zoutendijk and Mitici explicitly encode time features with sine and cosine. |
+| `SCHED_DEP_TIME_COS` | `cos(2π * SCHED_DEP_MINUTE_OF_DAY / 1440)`. | Pre | Completes the cyclical representation of scheduled departure time. |
+| `SCHED_ARR_MINUTE_OF_DAY` | Convert `CRSArrTime` from destination-local HHMM to minutes after local midnight. | Pre | Captures the scheduled arrival period without implying that origin and destination clocks share a time zone. It must not be subtracted from scheduled departure time; `CRSElapsedTime` is the valid duration field. |
+| `SCHED_ARR_TIME_SIN` | `sin(2π * SCHED_ARR_MINUTE_OF_DAY / 1440)`. | Pre | Preserves the daily periodicity of the destination-local scheduled arrival time. |
+| `SCHED_ARR_TIME_COS` | `cos(2π * SCHED_ARR_MINUTE_OF_DAY / 1440)`. | Pre | Completes the cyclical representation of scheduled arrival time. |
+| `TIME_OF_DAY` | Interpretable category derived from scheduled departure time, with fixed morning, afternoon, evening, and overnight bands documented before modeling. | Pre | Snell discusses time-of-day slots, Pineda uses a departure-period category, and Zoutendijk and Mitici select time of day. This field is especially useful for EDA; models may use it instead of, or compare it with, the cyclical pair to limit redundancy. |
+| `IS_WEEKEND` | 1 when `DayOfWeek` is 6 or 7; otherwise 0. | Pre | Provides a simple weekly schedule distinction. Snell discusses weekend flags, while all three references include or discuss weekday effects. |
+| `DAY_OF_WEEK_SIN` | `sin(2π * (DayOfWeek - 1) / 7)`. | Pre | Preserves adjacency between Sunday and Monday. Zoutendijk and Mitici explicitly apply trigonometric encoding to day of week. |
+| `DAY_OF_WEEK_COS` | `cos(2π * (DayOfWeek - 1) / 7)`. | Pre | Completes the weekly cyclical representation. |
+| `DAY_OF_YEAR` | Ordinal day from `FlightDate`, from 1 through 365 or 366. | Pre | Represents position within the year and is among the schedule features used by Zoutendijk and Mitici. |
+| `DAY_OF_YEAR_SIN` | `sin(2π * (DAY_OF_YEAR - 1) / days_in_year)`. | Pre | Represents annual seasonality continuously and handles leap years through `days_in_year`. |
+| `DAY_OF_YEAR_COS` | `cos(2π * (DAY_OF_YEAR - 1) / days_in_year)`. | Pre | Completes the annual cyclical representation. |
+| `MONTH_SIN` | `sin(2π * (Month - 1) / 12)`. | Pre | Represents month as a cycle. Zoutendijk and Mitici explicitly use month sine and cosine, and Pineda reports month effects. |
+| `MONTH_COS` | `cos(2π * (Month - 1) / 12)`. | Pre | Completes the monthly cyclical representation. |
+| `YEAR_PERIOD` | Treat 2019, 2023, and 2024 as categories rather than as a continuous numeric trend. | Pre | Separates the pre-pandemic baseline from the two post-pandemic periods without assuming a linear yearly effect. Zoutendijk and Mitici use year, but this project's discontinuous coverage makes a period indicator more defensible. |
+| `ROUTE` | Concatenate `Origin` and `Dest` as an origin-destination category. | Pre | Preserves the flight-leg identity highlighted by Snell and the airport/destination effects emphasized by Zoutendijk and Mitici and Pineda. |
+| `AIRLINE_FLIGHT_ID` | Concatenate `Reporting_Airline` and `Flight_Number_Reporting_Airline`; treat the result as categorical. | Pre | Avoids treating a flight number as a continuous quantity and distinguishes identical numbers used by different airlines. Snell and Pineda both retain scheduled flight and airline identity. |
+| `AIRLINE_DEST` | Concatenate `Reporting_Airline` and `Dest` as a categorical interaction. | Pre | Provides one limited, interpretable service-pattern interaction instead of a large arbitrary interaction set. Airline and destination are supported individually across the primary references. |
+| `LOG_DISTANCE` | `log1p(Distance)`. | Pre | Retains route-length ordering while reducing right skew. Distance is selected or discussed by all three primary references. The raw distance should remain available for tree models and interpretation. |
+| `SCHEDULED_SPEED_PROXY` | `60 * Distance / CRSElapsedTime`, when elapsed time is positive. | Pre | Summarizes the relationship between route length and scheduled gate-to-gate duration. It is schedule-derived and time-safe, but should be checked for redundancy with its two source fields before final selection. |
+| `ASPM_PREVIOUS_TOTAL_SCHEDULED_TRAFFIC` | Previous-hour scheduled departures plus previous-hour scheduled arrivals. | Pre | Summarizes planned airport workload immediately before the flight. Snell supports airport congestion/traffic measures, and Zoutendijk and Mitici use scheduled-flight counts near the flight time. |
+| `ASPM_CURRENT_TOTAL_SCHEDULED_TRAFFIC` | Current-hour scheduled departures plus current-hour scheduled arrivals. | Pre | Measures planned workload during the scheduled departure hour. |
+| `ASPM_NEXT_TOTAL_SCHEDULED_TRAFFIC` | Next-hour scheduled departures plus next-hour scheduled arrivals. | Pre | Measures planned workload just after the scheduled departure hour. These are schedule counts known ahead of time, not future realized outcomes. |
+| `ASPM_THREE_HOUR_SCHEDULED_DEPARTURES` | Sum scheduled departures across the previous, current, and next hours. | Pre | Approximates the local two-hour-neighborhood scheduled-flight feature used by Zoutendijk and Mitici while matching the available ASPM clock-hour records. |
+| `ASPM_THREE_HOUR_SCHEDULED_ARRIVALS` | Sum scheduled arrivals across the previous, current, and next hours. | Pre | Separates planned arrival demand from departure demand because each can load airport resources differently. |
+| `ASPM_THREE_HOUR_TOTAL_SCHEDULED_TRAFFIC` | Sum `ASPM_THREE_HOUR_SCHEDULED_DEPARTURES` and `ASPM_THREE_HOUR_SCHEDULED_ARRIVALS`. | Pre | Provides the main compact congestion feature supported by Snell's traffic-volume discussion and Zoutendijk and Mitici's scheduled-flight window. |
+| `ASPM_CURRENT_MINUS_PREVIOUS_TRAFFIC` | Current-hour total scheduled traffic minus previous-hour total. | Pre | Indicates whether planned airport workload is building or easing near departure without using realized performance. |
+| `ASPM_NEXT_MINUS_CURRENT_TRAFFIC` | Next-hour total scheduled traffic minus current-hour total. | Pre | Adds the forward planned-demand slope using only schedule information already known at prediction time. |
+| `ASPM_MAX_HOURLY_TRAFFIC` | Maximum of the previous-, current-, and next-hour total scheduled traffic. | Pre | Captures the local planned peak without imposing a learned high-traffic threshold. |
+| `TEMP_DEWPOINT_SPREAD` | `HourlyDryBulbTemperature - HourlyDewPointTemperature`. | Pre | Provides a compact moisture-related measure while retaining the underlying observations. Zoutendijk and Mitici select temperature/dew point features, and Snell and Pineda support weather integration. |
+| `LOG_PRECIPITATION` | `log1p(max(HourlyPrecipitation, 0))`. | Pre | Reduces precipitation skew while retaining trace and heavy precipitation distinctions. Snell and Pineda include precipitation-related weather information. |
+| `WEATHER_CONDITION_COUNT` | Sum `Rain`, `Drizzle`, `Snow`, `Fog`, `Mist`, `Thunderstorm`, `FreezingPrecip`, and `Showers`. | Pre | Gives an interpretable measure of how many adverse condition types are reported without inventing severity weights. |
+| `ADVERSE_WEATHER` | 1 when any of the eight weather-condition indicators is 1; otherwise 0. | Pre | Supplies a compact general-weather flag for linear baselines while the component indicators remain available. The primary references consistently support weather as a predictor. |
+| `ACTUAL_DEP_MINUTE_OF_DAY` | Convert `DepTime` from HHMM to minutes after local midnight. | 2B and 2C | Represents the known gate-out time once pushback occurs. Snell directly compares arrival-delay models without and with actual departure information. |
+| `ACTUAL_DEP_TIME_SIN` | `sin(2π * ACTUAL_DEP_MINUTE_OF_DAY / 1440)`. | 2B and 2C | Encodes actual pushback time without a midnight discontinuity. |
+| `ACTUAL_DEP_TIME_COS` | `cos(2π * ACTUAL_DEP_MINUTE_OF_DAY / 1440)`. | 2B and 2C | Completes the cyclical representation of actual pushback time. |
+| `DEPARTED_EARLY` | 1 when signed `DepDelay` is less than 0; otherwise 0. | 2B and 2C | Preserves the distinction between early and non-early departures if a nonnegative delay transform is tested. |
+| `LOG_DEP_DELAY_MINUTES` | `log1p(DepDelayMinutes)`. | 2B and 2C | Reduces the influence of very long departure delays while retaining their ordering. It should be compared with signed `DepDelay` rather than automatically included with every redundant departure-delay field. |
+
+### Feature selection and leakage rules
+
+The initial baseline should begin with the core table and the retained raw predictors, then remove redundant
+representations based only on the training data and model family. For example, a linear model may benefit from cyclical
+time features and compact weather summaries, while a tree model may not need both every raw input and every derived
+summary. Any one-hot, frequency, or target encoding, imputation, scaling, threshold selection, feature selection, or
+class-balancing step must be fitted on training data only.
+
+Threshold features such as `LOW_VISIBILITY`, `HIGH_WIND`, `ASPM_HIGH_TRAFFIC`, and source-staleness flags are deferred
+until their cutoffs are justified by an operational definition or selected from training data. Broad interaction sets
+and historical delay-rate features are also deferred. If historical rates are added later, the current row must be
+shifted out, only earlier completed flights may contribute, small groups must be smoothed, and development/test outcomes
+must never be used.
+
+For Model 2B, the first comparison should use a minimal actual-departure update, such as signed `DepDelay` alone, followed
+by a deliberately chosen fuller representation. `DepTime`, `DepDelay`, `DepDelayMinutes`, `DepDel15`, and
+`DepartureDelayGroups` encode overlapping information and should not all be included automatically. `TaxiOut` and
+`WheelsOff` remain excluded from Models 1, 2A, and 2B.
+
+The current merged airport-year files contain flights **departing** the selected airport. Before building Models 2A, 2B,
+and 2C as defined in this README, the merge must also create the inbound population with `Dest` equal to JFK and attach
+schedule, ASPM, and time-safe NOAA information for the flight origin at the relevant prediction time. The
+outbound rows or destination weather observed at landing must not be reused as a substitute. Pineda uses destination
+weather observed around landing, but that information is unavailable before pushback; it is eligible here only if a
+forecast or observation was demonstrably available by the model's prediction cutoff.
+
+Source timestamps (`FlightDate`, `DATE`, ASPM lookup/report dates, and `NOAA_DATE`) remain audit columns rather than
+predictors. The nine documented missing next-hour ASPM matches at annual file boundaries must remain missing or be
+recovered from the following year's planned schedule file; they must not be filled with zero or copied from the current
+hour. `Tail_Number` remains audit-only, and no aircraft rotation, previous-flight chain, turnaround, tail-sequence, or
+network-propagation feature is part of this feature set.
