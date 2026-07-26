@@ -1,6 +1,57 @@
 # Capstone Project - Berkeley ML and AI 
 ## Initial Report and Exploratory Data Analysis
 
+## Table of Contents
+
+- [Overview](#overview)
+  - [Primary goal: predict departure delay](#primary-goal-predict-departure-delay)
+  - [Secondary goal, if time allows: predict arrival delay](#secondary-goal-if-time-allows-predict-arrival-delay)
+  - [Why arrival-delay prediction requires more data](#why-arrival-delay-prediction-requires-more-data)
+    - [Primary departure-delay scenario: Model 1A](#primary-departure-delay-scenario-model-1a)
+    - [Secondary arrival-delay scenario: Models 2A, 2B, and 2C](#secondary-arrival-delay-scenario-models-2a-2b-and-2c)
+- [Business Understanding](#business-understanding)
+- [Data Understanding](#data-understanding)
+  - [Data Sources](#data-sources)
+  - [Data Coverage](#data-coverage)
+  - [Data Flow](#data-flow)
+  - [Matching Records by Time](#matching-records-by-time)
+  - [Model Outcomes and Available Information](#model-outcomes-and-available-information)
+- [Data Preparation](#data-preparation)
+  - [Data Directory](#data-directory)
+  - [Raw Data](#raw-data)
+  - [Processed and Cleaned Data](#processed-and-cleaned-data)
+  - [Model Data](#model-data)
+- [Modeling](#modeling)
+- [Evaluation](#evaluation)
+- [Deployment](#deployment)
+- [References](#references)
+  - [Data Sources](#data-sources-1)
+  - [Papers](#papers)
+- [Appendix A](#appendix-a)
+  - [BTS Column Selection and Dictionary](#bts-column-selection-and-dictionary)
+    - [Prediction-time eligibility of key BTS operational fields](#prediction-time-eligibility-of-key-bts-operational-fields)
+    - [Columns retained before merge](#columns-retained-before-merge)
+    - [Dropped airline, airport, time-block, and operational columns](#dropped-airline-airport-time-block-and-operational-columns)
+    - [Dropped diversion summary columns](#dropped-diversion-summary-columns)
+    - [Dropped diversion-stop columns](#dropped-diversion-stop-columns)
+    - [Dropped export artifact](#dropped-export-artifact)
+  - [ASPM Column Selection and Dictionary](#aspm-column-selection-and-dictionary)
+    - [ASPM columns retained before merge](#aspm-columns-retained-before-merge)
+    - [ASPM columns dropped during processing](#aspm-columns-dropped-during-processing)
+    - [ASPM names after merge](#aspm-names-after-merge)
+  - [NOAA Column Selection and Dictionary](#noaa-column-selection-and-dictionary)
+    - [NOAA fields retained before merge](#noaa-fields-retained-before-merge)
+    - [NOAA fields dropped during processing](#noaa-fields-dropped-during-processing)
+    - [NOAA names after merge](#noaa-names-after-merge)
+- [Appendix B](#appendix-b)
+  - [Joined Model-Assembly Column Dictionary](#joined-model-assembly-column-dictionary)
+    - [Joined BTS flight columns](#joined-bts-flight-columns)
+    - [Joined ASPM planned-demand columns](#joined-aspm-planned-demand-columns)
+    - [Joined NOAA weather columns](#joined-noaa-weather-columns)
+  - [Feature Engineering](#feature-engineering)
+    - [Initial core engineered features](#initial-core-engineered-features)
+    - [Feature selection and leakage rules](#feature-selection-and-leakage-rules)
+
 ## Overview
 
 This capstone investigates whether machine learning can predict significant delays for individual domestic flights
@@ -169,7 +220,7 @@ four model notebooks load the cleaned sources directly, perform their permitted 
 corresponding model datasets. `model_1a.ipynb` produces the primary departure dataset. The three arrival notebooks are
 used only if the broader origin-side data requirements can be completed. Within each notebook, the baseline feature set
 is evaluated first and engineered features are then applied on top of that baseline to determine whether they improve
-performance. See [Appendix A: Feature Engineering](#feature-engineering) for the candidate features, their construction and rationale,
+performance. See [Appendix B: Feature Engineering](#feature-engineering) for the candidate features, their construction and rationale,
 and the controls used to evaluate them without leakage. Joined working dataframes and audit columns may exist inside a
 notebook for validation, but they are not saved as separate merged or feature files.
 
@@ -268,7 +319,7 @@ data/
 
 The folders represent the main stages of the data:
 
-#### Raw
+### Raw Data
 
 The `raw` folders contain data as downloaded or first collected, along with the scripts used to retrieve or separate the source files.
 
@@ -289,7 +340,7 @@ NOAA Local Climatological Data is downloaded as one annual CSV for the weather s
 Station `74486094789` represents JFK. The files are grouped by year under `data/noaa/raw/` and provide the raw weather
 observations used to produce the JFK inputs for the NOAA processing notebook.
 
-#### Processed
+### Processed and Cleaned Data
 
 The `processed` folders contain smaller working files with the records and source columns needed by the project. Processing
 removes empty, redundant, or out-of-scope fields before the more detailed cleaning checks begin.
@@ -299,7 +350,7 @@ route, and outcome fields needed for analysis. ASPM processing keeps the airport
 scheduled hourly arrivals and departures. NOAA processing keeps the selected hourly weather measurements and removes
 rows that contain no usable weather observations.
 
-#### Cleaned
+
 
 The `cleaned` folders contain the standardized source files used directly by the model notebooks. Cleaning converts or constructs
 timestamps, sorts the records, and checks the expected columns, missing values, duplicate keys, numeric ranges, category
@@ -320,13 +371,15 @@ fields, or operating events available only to a later model. Fields published to
 as ASPM's realized performance measures, are removed. The model-ready files later enforce the exact information
 available at each prediction time and prevent time leakage.
 
-[Appendix A](#appendix-a) documents these decisions in more detail: the
+[Appendix A](#appendix-a) documents the source-column decisions in more detail: the
 [BTS column selection and timing rules](#bts-column-selection-and-dictionary),
 [ASPM planned-demand fields](#aspm-column-selection-and-dictionary),
-[NOAA weather fields](#noaa-column-selection-and-dictionary), and the
-[joined model-assembly columns](#joined-model-assembly-column-dictionary).
+and [NOAA weather fields](#noaa-column-selection-and-dictionary).
+[Appendix B](#appendix-b) documents the
+[joined model-assembly columns](#joined-model-assembly-column-dictionary) and
+[feature-engineering analysis](#feature-engineering).
 
-#### Models
+### Model Data
 
 The `models` folder contains one dataset file for each model and year. The `_m1a`, `_m2a`, `_m2b`, and `_m2c` suffixes
 identify the prediction scenario. Each file includes only the predictors and outcome allowed at that prediction time.
@@ -363,6 +416,8 @@ cleaned inputs.
 6. Maarten Beltman, Marta Ribeiro, Jasper de Wilde, and Junzi Sun, *Dynamically Forecasting Airline Departure Delay Probability Distributions for Individual Flights Using Supervised Learning*.
 
 # Appendix A
+
+This appendix documents source-column selection, processing decisions, and timing eligibility for BTS, ASPM, and NOAA.
 
 ## BTS Column Selection and Dictionary
 
@@ -638,6 +693,10 @@ Each model uses the most recent NOAA observation available by its prediction tim
 ### NOAA names after merge
 
 During the merge, `DATE` becomes `NOAA_DATE` so it is not confused with the flight timestamp. The weather feature names remain unchanged. `NOAA_AGE_MINUTES` records how old the matched weather observation is at the relevant flight time.
+
+# Appendix B
+
+This appendix documents the joined model-assembly columns and the candidate engineered features derived from them.
 
 ## Joined Model-Assembly Column Dictionary
 
