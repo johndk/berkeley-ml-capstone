@@ -4,11 +4,11 @@
 ## Table of Contents
 
 - [Overview](#overview)
-  - [Primary goal: predict departure delay](#primary-goal-predict-departure-delay)
-  - [Secondary goal, if time allows: predict arrival delay](#secondary-goal-if-time-allows-predict-arrival-delay)
+  - [Predict departure delay](#predict-departure-delay)
+  - [Predict arrival delay](#predict-arrival-delay)
   - [Why arrival-delay prediction requires more data](#why-arrival-delay-prediction-requires-more-data)
-    - [Primary departure-delay scenario: Model 1A](#primary-departure-delay-scenario-model-1a)
-    - [Secondary arrival-delay scenario: Models 2A, 2B, and 2C](#secondary-arrival-delay-scenario-models-2a-2b-and-2c)
+    - [Departure-delay scenario: Model 1A](#departure-delay-scenario-model-1a)
+    - [Arrival-delay scenario: Models 2A, 2B, and 2C](#arrival-delay-scenario-models-2a-2b-and-2c)
 - [Business Understanding](#business-understanding)
 - [Data Understanding](#data-understanding)
   - [Data Sources](#data-sources)
@@ -16,6 +16,8 @@
   - [Data Flow](#data-flow)
   - [Matching Records by Time](#matching-records-by-time)
   - [Model Outcomes and Available Information](#model-outcomes-and-available-information)
+  - [EDA](#eda)
+    - [List of Figures](#list-of-figures)
 - [Data Preparation](#data-preparation)
   - [Data Directory](#data-directory)
   - [Raw Data](#raw-data)
@@ -30,17 +32,17 @@
 - [Appendix A](#appendix-a)
   - [BTS Column Selection and Dictionary](#bts-column-selection-and-dictionary)
     - [Prediction-time eligibility of key BTS operational fields](#prediction-time-eligibility-of-key-bts-operational-fields)
-    - [Columns retained before merge](#columns-retained-before-merge)
+    - [BTS columns retained for modeling](#bts-columns-retained-for-modeling)
     - [Dropped airline, airport, time-block, and operational columns](#dropped-airline-airport-time-block-and-operational-columns)
     - [Dropped diversion summary columns](#dropped-diversion-summary-columns)
     - [Dropped diversion-stop columns](#dropped-diversion-stop-columns)
     - [Dropped export artifact](#dropped-export-artifact)
   - [ASPM Column Selection and Dictionary](#aspm-column-selection-and-dictionary)
-    - [ASPM columns retained before merge](#aspm-columns-retained-before-merge)
+    - [ASPM columns retained for modeling](#aspm-columns-retained-for-modeling)
     - [ASPM columns dropped during processing](#aspm-columns-dropped-during-processing)
     - [ASPM names after merge](#aspm-names-after-merge)
   - [NOAA Column Selection and Dictionary](#noaa-column-selection-and-dictionary)
-    - [NOAA fields retained before merge](#noaa-fields-retained-before-merge)
+    - [NOAA columns retained for modeling](#noaa-columns-retained-for-modeling)
     - [NOAA fields dropped during processing](#noaa-fields-dropped-during-processing)
     - [NOAA names after merge](#noaa-names-after-merge)
 - [Appendix B](#appendix-b)
@@ -54,7 +56,7 @@
 
 ## Overview
 
-This capstone investigates whether machine learning can predict significant delays for individual domestic flights
+This capstone project investigates whether machine learning can predict significant delays for individual domestic flights
 departing from or arriving at John F. Kennedy International Airport (JFK).
 
 A significant delay is defined as a departure or arrival delay of 15 minutes or more. The project also explores 
@@ -62,25 +64,29 @@ which flight, airport, and weather conditions are most closely associated with d
 
 The JFK analysis is organized into two model categories.
 
-### Primary goal: predict departure delay
+### Predict departure delay
+
+This is the primary goal of the capstone project.
 
 1. **Model 1A:** For a flight departing from JFK, predict before pushback whether the flight departs at least 15 minutes late.
 
-### Secondary goal, if time allows: predict arrival delay
+### Predict arrival delay
+
+These are secondary goals of the capstone project that will be explored if time allows. Arrival-delay modeling has substantially larger and more complex data requirements.
 
 1. **Model 2A:** For a flight arriving at JFK, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
 2. **Model 2B:** For a flight arriving at JFK, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
 3. **Model 2C:** For a flight arriving at JFK, predict immediately after takeoff at the flight origin whether it arrives at least 15 minutes late, using the actual departure, taxi-out, and takeoff information.
 
 The arrival-delay category applies the same basic flight-level classification approach as the departure-delay category:
-combine schedule, route, planned airport demand, and time-safe weather information to predict whether an individual
-flight crosses the 15-minute threshold. Model 2A uses the pre-pushback framework, Model 2B updates it with actual
+combine schedule, route, planned airport demand, and weather information to predict whether an individual
+flight crosses the 15-minute delay threshold. Model 2A uses the pre-pushback framework, Model 2B updates it with actual
 departure information, and Model 2C updates it again with taxi-out and takeoff information.
 
 Arrival-delay modeling has substantially larger and more complex data requirements. Model 1A uses flights departing from
 JFK and can use JFK ASPM and NOAA data. Models 2A, 2B, and 2C use flights arriving at JFK from many different origin
 airports. A complete implementation therefore requires appropriate ASPM and NOAA coverage for those origins, NOAA
-station mapping, source-specific cleaning and validation, and prediction-time-safe joins for every inbound flight.
+station mapping, source-specific cleaning and validation, and joins for every inbound flight.
 Because that work expands well beyond the single-airport departure pipeline, the arrival models are secondary goals to
 be attempted only after Model 1A is complete.
 
@@ -102,23 +108,23 @@ The project combines three main data sources:
 Each flight is represented by one BTS row containing both its `Origin` and `Dest`. The tables below identify the
 airport-specific ASPM and NOAA context attached to that row in the baseline design.
 
-#### Primary departure-delay scenario: Model 1A
+#### Departure-delay scenario: Model 1A
 
-| Airport role | BTS information used | ASPM context | NOAA context | Data footprint |
-|---|---|---|---|---|
-| JFK origin | Schedule, airline, route, distance, and `DepDel15` target | JFK planned traffic near scheduled departure | Latest JFK weather available by the prediction time | One ASPM airport and one NOAA station |
-| Flight destination | Destination identity and scheduled route information from the same BTS row | Not included in the baseline | Not included in the baseline | No additional airport-specific external-data pipeline |
+| Airport role | BTS information used                                       | ASPM context                                 | NOAA context                                        | Data footprint                 |
+|---|------------------------------------------------------------|----------------------------------------------|-----------------------------------------------------|--------------------------------|
+| JFK origin | Schedule, airline, route, distance, and `DepDel15` target  | JFK planned traffic near scheduled departure | Latest JFK weather available by the prediction time | BTS, ASPM, NOAA for JFK Origin |
+| Flight destination | Destination and schedule information from the same BTS row | -                                            | -                                                   | -                              |
 
-#### Secondary arrival-delay scenario: Models 2A, 2B, and 2C
+#### Arrival-delay scenario: Models 2A, 2B, and 2C
 
-| Airport role | BTS information used | ASPM context | NOAA context | Data footprint |
-|---|---|---|---|---|
-| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields when available | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | As many as 79 origin airports across the study years |
-| JFK destination | Destination identity, scheduled arrival information, and `ArrDel15` target from the same BTS row | Not included in the baseline | Not included in the baseline | One fixed destination, but many inbound source airports |
+| Airport role | BTS information used | ASPM context                                   | NOAA context                                                   | Data footprint                                    |
+|---|---|------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------|
+| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | BTS, ASPM, NOAA for as many as 79 origin airports |
+| JFK destination | Destination identity, scheduled arrival information, and `ArrDel15` target from the same BTS row | -                                              | -                                                              | BTS for JFK Destination                           |
 
-Both scenarios use the same basic idea: combine flight-level BTS information with planned airport demand and time-safe
+Both scenarios use the same basic idea: combine flight-level BTS information with planned airport demand and
 weather to classify whether a flight crosses the 15-minute delay threshold. The difference is the scale of the external
-data work. Model 1A always departs from JFK, so one ASPM dataset and one NOAA station pipeline can serve every row. In the
+data work. Model 1A always departs from JFK, so one ASPM dataset and one NOAA station can serve every row. In the
 arrival scenario, the departure airport changes from flight to flight. Each included origin needs ASPM coverage, a NOAA
 station mapping, source cleaning and validation, and its own prediction-time-safe joins.
 
@@ -156,7 +162,7 @@ If time allows, the arrival-delay extension asks:
 - How much does the arrival prediction improve once the actual departure delay is known?
 - How much more does the arrival prediction improve once taxi-out and takeoff information is known?
 
-The analysis examines JFK. As emphasized by Snell, Zoutendijk, and Pineda, a useful result does more than produce a
+The analysis examines JFK. A useful result does more than produce a
 yes-or-no answer. It provides a reliable estimate of delay risk and clearly shows which schedule, airport, and weather
 conditions influence the prediction.
 
@@ -230,7 +236,7 @@ The scheduled departure date and time, stored in `DATE`, provides the main time 
 with ASPM schedule records for the previous, current, and next clock hours. The next-hour values are planned counts known
 ahead of time, not future operating results. Each flight is also matched with the most recent NOAA observation available
 before its scheduled departure. The model notebook keeps source timestamps and timing differences in its working
-dataframe so the matches can be checked before the final projection is saved.
+dataframe so the matches can be checked.
 
 This time-based matching prevents a model from using airport conditions or weather observations that occurred after the prediction was made. It also allows the age of the matched information to be checked before modeling.
 
@@ -245,6 +251,48 @@ This time-based matching prevents a model from using airport conditions or weath
 
 Each model notebook engineers features that summarize time of day, season, route, distance, congestion, and weather. Each
 saved model dataset excludes information recorded after its stated prediction time.
+
+### EDA
+
+The exploratory data analysis notebooks examine data quality, target balance, temporal and route-related delay patterns,
+weather, planned airport traffic, and differences across the available datasets. The figures are organized below by
+their source notebook.
+
+#### List of Figures
+
+| Figure | Visualization | Description |
+|---:|---|---|
+| 1 | [Missing values](eda/01_data_quality_and_targets.ipynb#missing-values) | Counts and percentages of missing values by column. |
+| 2 | [Delay target balance](eda/01_data_quality_and_targets.ipynb#target-balance) | Class balance for the departure- and arrival-delay targets. |
+| 3 | [Daily flight volume](eda/01_data_quality_and_targets.ipynb#flight-volume-over-the-year) | Number of scheduled JFK departures on each date. |
+| 4 | [Timing of matched source records](eda/01_data_quality_and_targets.ipynb#timing-of-matched-source-records) | ASPM time offsets and the age of matched NOAA observations. |
+| 5 | [Monthly delay rate](eda/02_delay_patterns.ipynb#delay-rate-by-month) | Departure- and arrival-delay rates by calendar month. |
+| 6 | [Delay rate by day of week](eda/02_delay_patterns.ipynb#delay-rate-by-day-of-week) | Delay rates from Monday through Sunday. |
+| 7 | [Delay rate by scheduled departure hour](eda/02_delay_patterns.ipynb#delay-rate-by-scheduled-departure-hour) | Hourly pattern of delay risk across the operating day. |
+| 8 | [Delay rate by time of day](eda/02_delay_patterns.ipynb#broad-time-of-day-comparison) | Delay rates for broad overnight, morning, afternoon, and evening periods. |
+| 9 | [Delay rate for the busiest airlines](eda/02_delay_patterns.ipynb#airlines) | Delay rates for the airlines operating the most JFK departures. |
+| 10 | [Delay rate for the busiest destinations](eda/02_delay_patterns.ipynb#destinations) | Delay rates for the most frequently served destinations. |
+| 11 | [Delay rate by BTS distance group](eda/02_delay_patterns.ipynb#distance-group) | Delay rates across BTS route-distance bands. |
+| 12 | [Departure-delay rate by airline and weekday](eda/02_delay_patterns.ipynb#airline-and-weekday-interaction) | Airline-by-weekday heatmap of departure-delay rates. |
+| 13 | [Departure-delay rate by month and scheduled hour](eda/02_delay_patterns.ipynb#month-and-scheduled-hour-interaction) | Month-by-hour heatmap showing seasonal changes in daily delay patterns. |
+| 14 | [Departure and arrival delay outcomes](eda/02_delay_patterns.ipynb#relationship-between-departure-and-arrival-outcomes) | Joint distribution of departure and arrival delay classifications. |
+| 15 | [Departure-delay distributions](eda/02_delay_patterns.ipynb#departure-delay-duration) | Signed departure delays and nonnegative delay durations. |
+| 16 | [Weather distributions](eda/03_weather_and_congestion.ipynb#weather-distributions) | Distributions of temperature, humidity, visibility, precipitation, and wind. |
+| 17 | [Delay rate by reported weather](eda/03_weather_and_congestion.ipynb#adverse-weather-comparison) | Delay rates with and without reported adverse weather. |
+| 18 | [Delay rate during reported weather conditions](eda/03_weather_and_congestion.ipynb#individual-weather-conditions) | Delay rates associated with individual reported weather conditions. |
+| 19 | [Delay rate by visibility](eda/03_weather_and_congestion.ipynb#visibility) | Delay rates across operationally interpretable visibility categories. |
+| 20 | [Scheduled airport traffic around departure](eda/03_weather_and_congestion.ipynb#scheduled-airport-traffic) | Planned traffic distributions for the previous, current, and next hours. |
+| 21 | [Delay rate by three-hour scheduled traffic](eda/03_weather_and_congestion.ipynb#delay-rate-by-traffic-level) | Delay rates across quintiles of three-hour planned traffic. |
+| 22 | [Departure-delay rate across current-hour scheduled demand](eda/03_weather_and_congestion.ipynb#current-hour-arrivals-and-departures) | Delay risk across combinations of scheduled departures and arrivals. |
+| 23 | [Departure delay by weather and traffic](eda/03_weather_and_congestion.ipynb#weather-and-congestion-together) | Interaction between adverse weather and planned traffic level. |
+| 24 | [Selected numeric correlations](eda/03_weather_and_congestion.ipynb#correlation-overview) | Correlations among targets, weather, traffic, and source-age fields. |
+| 25 | [JFK flights by year](eda/04_airport_year_comparison.ipynb#dataset-size-and-basic-coverage) | Flight counts for the 2019, 2023, and 2024 JFK datasets. |
+| 26 | [JFK delay rates by year](eda/04_airport_year_comparison.ipynb#departure-and-arrival-delay-rates) | Departure- and arrival-delay class balance across years. |
+| 27 | [JFK delay-rate heatmap](eda/04_airport_year_comparison.ipynb#delay-rate-heatmaps) | Compact comparison of departure and arrival delay rates by year. |
+| 28 | [Monthly JFK delay rates by year](eda/04_airport_year_comparison.ipynb#monthly-patterns) | Seasonal delay patterns compared across the three study years. |
+| 29 | [Hourly JFK delay rates by year](eda/04_airport_year_comparison.ipynb#scheduled-hour-patterns) | Daily delay build-up compared across the three study years. |
+| 30 | [JFK scheduled traffic around departure by year](eda/04_airport_year_comparison.ipynb#airport-traffic-distributions) | Planned previous-, current-, and next-hour traffic across years. |
+| 31 | [JFK weather and source timing by year](eda/04_airport_year_comparison.ipynb#weather-and-source-timing-differences) | Visibility, ASPM offsets, and NOAA observation age across years. |
 
 ## Data Preparation
 
@@ -414,6 +462,7 @@ cleaned inputs.
 4. Meng Li, *Air Traffic Delay Prediction Based on Machine Learning and Delay Propagation*.
 5. Jun Chen and Meng Li, *Chained Predictions of Flight Delay Using Machine Learning*.
 6. Maarten Beltman, Marta Ribeiro, Jasper de Wilde, and Junzi Sun, *Dynamically Forecasting Airline Departure Delay Probability Distributions for Individual Flights Using Supervised Learning*.
+7. Sarah Ahmed A. AlBassam, *Flight Delay Prediction: Evaluating Machine Learning Algorithms for Enhanced Accuracy*.
 
 # Appendix A
 
@@ -453,7 +502,7 @@ of Model 2B would receive gate-departure information from a suitable live feed, 
 
 “Dropped” means a field is unnecessary or inappropriate for this capstone design; it does not mean the field has no value in other aviation studies.
 
-### Columns retained before merge
+### BTS columns retained for modeling
 
 | Column | Meaning | Why it is retained / how it is used |
 |---|---|---|
@@ -599,7 +648,7 @@ The other 13 source columns are dropped. They contain supporting calculation cou
 
 These operational fields could be used in a separate historical analysis, but that work is outside the capstone scope. Excluding them keeps the feature set focused on information that is useful and reasonably available at prediction time.
 
-### ASPM columns retained before merge
+### ASPM columns retained for modeling
 
 | Column | Meaning | Why it is retained / how it is used |
 |---|---|---|
@@ -653,7 +702,7 @@ include weather that occurred later.
 
 Each model uses the most recent NOAA observation available by its prediction time. Later observations are excluded to prevent data leakage. Missing weather values must also be handled with a past-only method so that an earlier record is not filled using future weather.
 
-### NOAA fields retained before merge
+### NOAA columns retained for modeling
 
 | Column | Plain-English description | Why it is retained |
 |---|---|---|
