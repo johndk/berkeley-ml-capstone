@@ -13,7 +13,7 @@ The JFK analysis is organized into two model categories.
 
 ### Primary goal: predict departure delay
 
-1. **Model 1:** For a flight departing from JFK, predict before pushback whether the flight departs at least 15 minutes late.
+1. **Model 1A:** For a flight departing from JFK, predict before pushback whether the flight departs at least 15 minutes late.
 
 ### Secondary goal, if time allows: predict arrival delay
 
@@ -26,12 +26,12 @@ combine schedule, route, planned airport demand, and time-safe weather informati
 flight crosses the 15-minute threshold. Model 2A uses the pre-pushback framework, Model 2B updates it with actual
 departure information, and Model 2C updates it again with taxi-out and takeoff information.
 
-Arrival-delay modeling has substantially larger and more complex data requirements. Model 1 uses flights departing from
+Arrival-delay modeling has substantially larger and more complex data requirements. Model 1A uses flights departing from
 JFK and can use JFK ASPM and NOAA data. Models 2A, 2B, and 2C use flights arriving at JFK from many different origin
 airports. A complete implementation therefore requires appropriate ASPM and NOAA coverage for those origins, NOAA
 station mapping, source-specific cleaning and validation, and prediction-time-safe joins for every inbound flight.
 Because that work expands well beyond the single-airport departure pipeline, the arrival models are secondary goals to
-be attempted only after Model 1 is complete.
+be attempted only after Model 1A is complete.
 
 Each model follows a clear prediction time. A field is included only if it would be known at that time; information
 recorded later is excluded even when it appears in the historical dataset. This prevents the model from learning from
@@ -51,7 +51,7 @@ The project combines three main data sources:
 Each flight is represented by one BTS row containing both its `Origin` and `Dest`. The tables below identify the
 airport-specific ASPM and NOAA context attached to that row in the baseline design.
 
-#### Primary departure-delay scenario: Model 1
+#### Primary departure-delay scenario: Model 1A
 
 | Airport role | BTS information used | ASPM context | NOAA context | Data footprint |
 |---|---|---|---|---|
@@ -67,7 +67,7 @@ airport-specific ASPM and NOAA context attached to that row in the baseline desi
 
 Both scenarios use the same basic idea: combine flight-level BTS information with planned airport demand and time-safe
 weather to classify whether a flight crosses the 15-minute delay threshold. The difference is the scale of the external
-data work. Model 1 always departs from JFK, so one ASPM dataset and one NOAA station pipeline can serve every row. In the
+data work. Model 1A always departs from JFK, so one ASPM dataset and one NOAA station pipeline can serve every row. In the
 arrival scenario, the departure airport changes from flight to flight. Each included origin needs ASPM coverage, a NOAA
 station mapping, source cleaning and validation, and its own prediction-time-safe joins.
 
@@ -116,7 +116,7 @@ can be explained in a useful way.
 ## Data Understanding
 
 The project brings together flight, airport, and weather data. Each record represents one flight. JFK is the origin for
-Model 1 and the destination for Models 2A, 2B, and 2C. Airport and weather records
+Model 1A and the destination for Models 2A, 2B, and 2C. Airport and weather records
 are added without changing this one-row-per-flight structure.
 
 ### Data Sources
@@ -142,6 +142,58 @@ pandemic-related disruptions had passed.
 The exact division of the years and flights into training, development, and final test sets remains to be decided. 
 The split preserves time order so that the models are trained on earlier flights and evaluated
 on later flights they have not seen. Files use a consistent `JFK_YEAR.csv` naming pattern.
+
+### Data Flow
+
+```text
+Raw BTS  ──→ Process BTS  ──→ Clean BTS  ─────┐
+                                              │
+Raw ASPM ──→ Process ASPM ──→ Clean ASPM ─────┼──→ Cleaned source data
+                                              │               │
+Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘               │
+                                                              │
+                     ┌───────────────────┬────────────────────┼───────────────────┐
+                     ▼                   ▼                    ▼                   ▼
+          notebooks/model_1a.ipynb  model_2a.ipynb      model_2b.ipynb      model_2c.ipynb
+          Join and engineer         Join and engineer   Join and engineer   Join and engineer
+          JFK departures            JFK arrivals        JFK arrivals        JFK arrivals
+                     │                   │                    │                   │
+                     ▼                   ▼                    ▼                   ▼
+             data/models/         data/models/        data/models/        data/models/
+             JFK_YEAR_m1a.csv     JFK_YEAR_m2a.csv    JFK_YEAR_m2b.csv    JFK_YEAR_m2c.csv
+             Primary              Secondary           Secondary           Secondary
+```
+
+Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The
+four model notebooks load the cleaned sources directly, perform their permitted time-safe joins, and create the
+corresponding model datasets. `model_1a.ipynb` produces the primary departure dataset. The three arrival notebooks are
+used only if the broader origin-side data requirements can be completed. Within each notebook, the baseline feature set
+is evaluated first and engineered features are then applied on top of that baseline to determine whether they improve
+performance. See [Appendix A: Feature Engineering](#feature-engineering) for the candidate features, their construction and rationale,
+and the controls used to evaluate them without leakage. Joined working dataframes and audit columns may exist inside a
+notebook for validation, but they are not saved as separate merged or feature files.
+
+### Matching Records by Time
+
+The scheduled departure date and time, stored in `DATE`, provides the main time for each BTS flight. Each flight is matched
+with ASPM schedule records for the previous, current, and next clock hours. The next-hour values are planned counts known
+ahead of time, not future operating results. Each flight is also matched with the most recent NOAA observation available
+before its scheduled departure. The model notebook keeps source timestamps and timing differences in its working
+dataframe so the matches can be checked before the final projection is saved.
+
+This time-based matching prevents a model from using airport conditions or weather observations that occurred after the prediction was made. It also allows the age of the matched information to be checked before modeling.
+
+### Model Outcomes and Available Information
+
+| Category | Model | Outcome | Information available when the prediction is made |
+|---|---|---|---|
+| Primary: departure | Model 1A | `DepDel15` | Flight schedule, earlier airport conditions, and earlier weather observations |
+| Secondary: arrival | Model 2A | `ArrDel15` | The same general pre-pushback information as Model 1A, collected for the flight origin |
+| Secondary: arrival | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
+| Secondary: arrival | Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
+
+Each model notebook engineers features that summarize time of day, season, route, distance, congestion, and weather. Each
+saved model dataset excludes information recorded after its stated prediction time.
 
 ## Data Preparation
 
@@ -205,18 +257,13 @@ data/
 │   └── cleaned/
 │       ├── JFK_2019.csv
 │       └── ... through JFK_2024.csv
-├── merged/
-│   ├── JFK_2019.csv
-│   └── ... through JFK_2024.csv
-├── features/
-│   ├── JFK_2019.csv
-│   └── ... through JFK_2024.csv
 └── models/
-    ├── JFK_2019_m1.csv
+    ├── JFK_2019_m1a.csv
     ├── JFK_2019_m2a.csv
     ├── JFK_2019_m2b.csv
     ├── JFK_2019_m2c.csv
-    └── ... same four model files for 2023 and 2024
+    └── ... same four model dataset files for 2023 and 2024
+        ... and model variants
 ```
 
 The folders represent the main stages of the data:
@@ -254,7 +301,7 @@ rows that contain no usable weather observations.
 
 #### Cleaned
 
-The `cleaned` folders contain the standardized source files used by the merge step. Cleaning converts or constructs
+The `cleaned` folders contain the standardized source files used directly by the model notebooks. Cleaning converts or constructs
 timestamps, sorts the records, and checks the expected columns, missing values, duplicate keys, numeric ranges, category
 codes, time coverage, and outcome consistency. Validation checks report possible problems without changing otherwise
 valid records.
@@ -265,8 +312,8 @@ continuous measurements are also filled during the current cleaning process. Bef
 limited to weather already observed at the relevant prediction time so a later observation cannot influence an earlier
 flight.
 
-The cleaned BTS, ASPM, and NOAA JFK-year files remain separate until the merge step. The merge keeps one row per
-flight and adds the appropriate scheduled airport demand and time-matched weather observation.
+The cleaned BTS, ASPM, and NOAA JFK-year files remain separate until a model notebook loads them. Each model notebook
+keeps one row per eligible flight and adds the appropriate scheduled airport demand and time-matched weather observation.
 
 Cleaning a field does not automatically make it a valid predictor. Some retained BTS fields are outcomes, validation
 fields, or operating events available only to a later model. Fields published too late to support the prediction, such
@@ -276,81 +323,17 @@ available at each prediction time and prevent time leakage.
 Appendix A describes the retained and removed columns, source-specific transformations, and prediction-time restrictions
 in more detail.
 
-#### Merged
-
-The `merged` folder contains one JFK file for each year. Each row represents one completed, non-diverted flight departing
-JFK. The original flight-level structure is preserved while planned ASPM arrivals and
-departures for the previous, current, and next clock hours are added. The latest NOAA weather observation available
-before scheduled departure is also attached.
-
-Source timestamps, lookup times, and timing differences remain in the files so the joins and information availability
-can be checked. The merged files support EDA and feature engineering, but they are not model-ready: they still contain
-targets, descriptive outcomes, and operational fields that are unavailable to some models. Appendix A provides the
-complete merged column dictionary and explains the timing and intended use of each field.
-
-#### Features
-
-The `features` folder contains one feature-engineered JFK file for each year.
-
 #### Models
 
-The `models` folder contains the primary `_m1` projection for each JFK-year feature file. If the secondary arrival work
-is completed, the folder also contains `_m2a`, `_m2b`, and `_m2c` projections. Each file includes only the predictors and
-outcome allowed at that prediction time.
+The `models` folder contains one dataset file for each model and year. The `_m1a`, `_m2a`, `_m2b`, and `_m2c` suffixes
+identify the prediction scenario. Each file includes only the predictors and outcome allowed at that prediction time.
+The file can contain both baseline predictors and permitted engineered-feature candidates. Baseline and engineered
+variants are defined as feature subsets and compared within the corresponding notebook rather than stored as separate
+files or directory trees.
 
-The processing and cleaning work is recorded in separate notebooks for BTS, ASPM, and NOAA. A separate merge notebook combines the three cleaned sources.
-
-### Data Flow
-
-```text
-Raw BTS  ──→ Process BTS  ──→ Clean BTS  ─────┐
-                                              │
-Raw ASPM ──→ Process ASPM ──→ Clean ASPM ─────┼──→ Merge
-                                              │       │
-Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘       │ 
-                                                      │
-                                                      ▼
-                                             Merged flight data
-                                             JFK_YEAR.csv
-                                                      │
-                                                      ▼
-                                             Feature engineering
-                                                      │
-                                                      ▼
-                                           features/JFK_YEAR.csv
-                                                      │
-                    ┌─────────────────┬───────────────┼───────────────┬─────────────────┐
-                    ▼                 ▼               ▼               ▼
-       models/JFK_YEAR_m1.csv  models/..._m2a.csv  models/..._m2b.csv  models/..._m2c.csv
-       Primary: departure       Secondary: arrival  Secondary: arrival  Secondary: arrival
-       before pushback          before pushback      after pushback      after takeoff
-```
-
-Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The
-cleaned sources are merged into a single flight-level dataset. Feature engineering creates additional values from the
-existing dates, times, routes, congestion measures, and weather conditions. The primary output is the Model 1 dataset.
-The three arrival-model datasets are produced only if the broader origin-side data requirements can be completed.
-
-### Matching Records by Time
-
-The scheduled departure date and time, stored in `DATE`, provides the main time for each BTS flight. Each flight is matched
-with ASPM schedule records for the previous, current, and next clock hours. The next-hour values are planned counts known
-ahead of time, not future operating results. Each flight is also matched with the most recent NOAA observation available
-before its scheduled departure. The merged data keeps the source timestamps and timing differences so the matches can be
-checked.
-
-This time-based matching prevents a model from using airport conditions or weather observations that occurred after the prediction was made. It also allows the age of the matched information to be checked before modeling.
-
-### Model Outcomes and Available Information
-
-| Category | Model | Outcome | Information available when the prediction is made |
-|---|---|---|---|
-| Primary: departure | Model 1 | `DepDel15` | Flight schedule, earlier airport conditions, and earlier weather observations |
-| Secondary: arrival | Model 2A | `ArrDel15` | The same general pre-pushback information as Model 1, collected for the flight origin |
-| Secondary: arrival | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
-| Secondary: arrival | Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
-
-The merged data is explored and expanded with features that summarize time of day, season, route, distance, congestion, and weather. Each model excludes information recorded after its stated prediction time.
+The processing and cleaning work is recorded in separate notebooks for BTS, ASPM, and NOAA. The four model notebooks
+perform the model-specific joins, validation, feature engineering, and final column projection directly from those
+cleaned inputs.
 
 ## Modeling
 
@@ -397,11 +380,11 @@ airport operational system can observe when they occur. This capstone uses the h
 predictions change at those event times. It therefore makes an explicit deployment assumption: an operational version 
 of Model 2B would receive gate-departure information from a suitable live feed, not wait for the later BTS publication.
 
-`DepTime`, `TaxiOut`, and `WheelsOff` are retained because they mark useful and clearly different information points. `DepTime` is the actual gate-out or pushback time and is eligible for Model 2B. `TaxiOut` is not complete, and `WheelsOff` is not known, until takeoff; both are excluded from Models 1, 2A, and 2B. They become eligible for Model 2C, which updates the arrival-delay prediction immediately after takeoff. Arrival results remain targets or retrospective analysis fields and are never predictors.
+`DepTime`, `TaxiOut`, and `WheelsOff` are retained because they mark useful and clearly different information points. `DepTime` is the actual gate-out or pushback time and is eligible for Model 2B. `TaxiOut` is not complete, and `WheelsOff` is not known, until takeoff; both are excluded from Models 1A, 2A, and 2B. They become eligible for Model 2C, which updates the arrival-delay prediction immediately after takeoff. Arrival results remain targets or retrospective analysis fields and are never predictors.
 
 ### Prediction-time eligibility of key BTS operational fields
 
-| Field | Model 1: before pushback | Model 2A: before pushback | Model 2B: after pushback | Model 2C: after takeoff |
+| Field | Model 1A: before pushback | Model 2A: before pushback | Model 2B: after pushback | Model 2C: after takeoff |
 |---|---|---|---|---|
 | Scheduled fields such as `CRSDepTime`, `CRSArrTime`, and `CRSElapsedTime` | Eligible | Eligible | Eligible | Eligible |
 | `DepTime` and departure-delay fields derived from gate-out | Excluded: not yet known | Excluded: not yet known | Eligible: gate-out has occurred | Eligible |
@@ -425,18 +408,18 @@ of Model 2B would receive gate-departure information from a suitable live feed, 
 | `Reporting_Airline` | BTS reporting carrier code. | Retained as the main airline identifier. |
 | `Tail_Number` | Aircraft registration or tail number. | Retained for audit and validation. It is not intended as a model feature because aircraft-chain and propagation modeling are out of scope. |
 | `Flight_Number_Reporting_Airline` | Flight number assigned by the reporting carrier. | Retained as a flight identifier and possible categorical feature; it is not treated as a continuous quantity. |
-| `Origin` | Three-letter origin airport code. | Retained to identify flights originating at JFK for Model 1 and the departure airport for Models 2A, 2B, and 2C. |
+| `Origin` | Three-letter origin airport code. | Retained to identify flights originating at JFK for Model 1A and the departure airport for Models 2A, 2B, and 2C. |
 | `OriginState` | Two-letter state code for the origin airport. | Retained as a compact geographic field. |
 | `Dest` | Three-letter destination airport code. | Retained to identify flights arriving at JFK for Models 2A, 2B, and 2C. |
 | `DestState` | Two-letter state code for the destination airport. | Retained as a compact geographic field. |
 | `CRSDepTime` | Computer Reservation System scheduled departure time in local HHMM form. | Retained because it is known before departure and is used to construct the exact scheduled departure timestamp. |
-| `DepTime` | Actual gate departure time in local HHMM form. | Retained as the event-time field for Model 2B and for descriptive analysis. It is excluded from Models 1 and 2A because gate-out has not occurred when those predictions are made. BTS supplies the historical value; a deployed Model 2B would require an operational gate-out feed. |
-| `DepDelay` | Actual gate departure time minus scheduled departure time, in minutes; negative values indicate an early departure. | Retained as a Model 2B predictor because it is known once gate-out occurs. It is excluded from Models 1 and 2A. Because it overlaps the other departure-delay fields, the final Model 2B projection should avoid unnecessary duplicate representations. |
+| `DepTime` | Actual gate departure time in local HHMM form. | Retained as the event-time field for Model 2B and for descriptive analysis. It is excluded from Models 1A and 2A because gate-out has not occurred when those predictions are made. BTS supplies the historical value; a deployed Model 2B would require an operational gate-out feed. |
+| `DepDelay` | Actual gate departure time minus scheduled departure time, in minutes; negative values indicate an early departure. | Retained as a Model 2B predictor because it is known once gate-out occurs. It is excluded from Models 1A and 2A. Because it overlaps the other departure-delay fields, the final Model 2B projection should avoid unnecessary duplicate representations. |
 | `DepDelayMinutes` | Nonnegative departure delay in minutes; early departures are recorded as zero. | Retained as a possible Model 2B representation and to validate `DepDelay` and `DepDel15`. It is excluded from pre-pushback predictors and need not be included together with every related departure-delay field. |
-| `DepDel15` | Indicator equal to 1 when departure delay is at least 15 minutes. | Target for Model 1. It is excluded from Model 2A but may be used as a compact post-pushback input for Model 2B because the departure outcome is known at gate-out. It is never used to predict itself in Model 1. |
+| `DepDel15` | Indicator equal to 1 when departure delay is at least 15 minutes. | Target for Model 1A. It is excluded from Model 2A but may be used as a compact post-pushback input for Model 2B because the departure outcome is known at gate-out. It is never used to predict itself in Model 1A. |
 | `DepartureDelayGroups` | Departure delay grouped into ordered 15-minute ranges. | Retained for validation, EDA, and possible Model 2B use. It is excluded before pushback and is not automatically included alongside the continuous and binary departure-delay fields. |
-| `TaxiOut` | Minutes from gate departure to wheels-off. | Retained as a Model 2C predictor and for validation and EDA. It is excluded from Models 1, 2A, and 2B because the full taxi-out duration is unknown immediately after pushback. |
-| `WheelsOff` | Actual takeoff time in local HHMM form. | Retained as a Model 2C predictor and for validation and EDA. It is excluded from Models 1, 2A, and 2B because takeoff occurs after their prediction times. As with `DepTime`, BTS is the historical source rather than the proposed live event feed. |
+| `TaxiOut` | Minutes from gate departure to wheels-off. | Retained as a Model 2C predictor and for validation and EDA. It is excluded from Models 1A, 2A, and 2B because the full taxi-out duration is unknown immediately after pushback. |
+| `WheelsOff` | Actual takeoff time in local HHMM form. | Retained as a Model 2C predictor and for validation and EDA. It is excluded from Models 1A, 2A, and 2B because takeoff occurs after their prediction times. As with `DepTime`, BTS is the historical source rather than the proposed live event feed. |
 | `CRSArrTime` | Scheduled arrival time in the destination's local HHMM form. | Retained because it is known from the schedule before departure. |
 | `ArrDel15` | Indicator equal to 1 when arrival delay is at least 15 minutes. | Target for Models 2A, 2B, and 2C. It is never used as a predictor because it is known only after arrival. |
 | `ArrivalDelayGroups` | Arrival delay grouped into ordered 15-minute ranges. | Retained for target validation and EDA. It is excluded from every model input because it describes the completed arrival outcome. |
@@ -653,17 +636,17 @@ Each model uses the most recent NOAA observation available by its prediction tim
 
 During the merge, `DATE` becomes `NOAA_DATE` so it is not confused with the flight timestamp. The weather feature names remain unchanged. `NOAA_AGE_MINUTES` records how old the matched weather observation is at the relevant flight time.
 
-## Merged Dataset Column Dictionary
+## Joined Model-Assembly Column Dictionary
 
-Each merged JFK-year file contains one row per completed, non-diverted flight departing JFK. The
-current dataset has 71 columns: 28 BTS flight fields, 24 ASPM planned-demand and join-audit fields, and 19 NOAA weather
-and join-audit fields.
+Inside `model_1a.ipynb`, the joined working dataframe contains one row per completed, non-diverted flight departing JFK.
+Before feature engineering and final projection, it has 71 columns: 28 BTS flight fields, 24 ASPM planned-demand and
+join-audit fields, and 19 NOAA weather and join-audit fields.
 
-The merged dataset is intentionally broader than any model dataset. It contains targets, descriptive outcomes, source
-timestamps, and operational events from different points in time. A column appearing here does not mean it is eligible
-for every model. The later model projections keep only information available at the stated prediction time.
+This in-memory dataframe is intentionally broader than the saved model dataset. It contains targets, descriptive
+outcomes, source timestamps, and operational events from different points in time. A column appearing here does not mean
+it is eligible for every model. The final projection keeps only information available at the stated prediction time.
 
-### Merged BTS flight columns
+### Joined BTS flight columns
 
 | Column | Description | Use and availability |
 |---|---|---|
@@ -681,13 +664,13 @@ for every model. The later model projections keep only information available at 
 | `Dest` | Three-letter destination-airport code. | Identifies the route destination. |
 | `DestState` | Two-letter state code for the destination. | Compact destination-location field. |
 | `CRSDepTime` | Scheduled departure time in local HHMM form. | Known before departure and used to construct the scheduled timestamp. |
-| `DepTime` | Actual gate departure or pushback time in local HHMM form. | Available only after pushback; eligible for Model 2B, not Models 1 or 2A. |
-| `DepDelay` | Actual gate departure minus scheduled departure, in minutes. | Model 1 target information and a possible Model 2B predictor; unavailable before pushback. |
+| `DepTime` | Actual gate departure or pushback time in local HHMM form. | Available only after pushback; eligible for Model 2B, not Models 1A or 2A. |
+| `DepDelay` | Actual gate departure minus scheduled departure, in minutes. | Model 1A target information and a possible Model 2B predictor; unavailable before pushback. |
 | `DepDelayMinutes` | Nonnegative departure delay in minutes. | Outcome field used for validation and possible Model 2B input. |
-| `DepDel15` | Indicates a departure delay of at least 15 minutes. | Target for Model 1 and possible post-pushback input for Model 2B. |
+| `DepDel15` | Indicates a departure delay of at least 15 minutes. | Target for Model 1A and possible post-pushback input for Model 2B. |
 | `DepartureDelayGroups` | Departure delay grouped into 15-minute ranges. | Outcome field for EDA and validation; unavailable before pushback. |
-| `TaxiOut` | Minutes from gate departure to takeoff. | Available only after takeoff; eligible for Model 2C and excluded from Models 1, 2A, and 2B. |
-| `WheelsOff` | Actual takeoff time in local HHMM form. | Available only at takeoff; eligible for Model 2C and excluded from Models 1, 2A, and 2B. |
+| `TaxiOut` | Minutes from gate departure to takeoff. | Available only after takeoff; eligible for Model 2C and excluded from Models 1A, 2A, and 2B. |
+| `WheelsOff` | Actual takeoff time in local HHMM form. | Available only at takeoff; eligible for Model 2C and excluded from Models 1A, 2A, and 2B. |
 | `CRSArrTime` | Scheduled arrival time in the destination's local HHMM form. | Schedule field known before departure. |
 | `ArrDel15` | Indicates an arrival delay of at least 15 minutes. | Target for Models 2A, 2B, and 2C; never a predictor. |
 | `ArrivalDelayGroups` | Arrival delay grouped into 15-minute ranges. | Completed-flight outcome used only for EDA and target validation. |
@@ -696,7 +679,7 @@ for every model. The later model projections keep only information available at 
 | `DistanceGroup` | BTS distance band based on 250-mile intervals. | Grouped route-length field available before departure. |
 | `DATE` | Scheduled departure timestamp constructed from `FlightDate` and `CRSDepTime`. | Main flight timestamp used for sorting and time-based joins. |
 
-### Merged ASPM planned-demand columns
+### Joined ASPM planned-demand columns
 
 ASPM supplies planned schedule counts for the previous, current, and next clock hours around scheduled departure. These
 are schedule values known ahead of time, not future operating results. The offset is calculated as the ASPM timestamp
@@ -732,10 +715,10 @@ minus the flight's scheduled departure timestamp.
 A few next-hour fields are null for flights in the final hour of December 31 because the requested ASPM record belongs
 to the next annual file. These are documented year-boundary gaps, not zero-traffic hours.
 
-### Merged NOAA weather columns
+### Joined NOAA weather columns
 
 NOAA supplies the latest weather observation at or before scheduled departure. The observation timestamp and age remain
-in the merged data so future or stale matches can be detected.
+in the working dataframe so future or stale matches can be detected.
 
 | Column | Description | Use and availability |
 |---|---|---|
@@ -768,7 +751,7 @@ variables; Zoutendijk and Mitici use airline, airport, distance, scheduled traff
 and Pineda-Jaramillo et al. combine flight, airport, geographic, and weather data and analyze the features that influence
 the resulting predictions.
 
-The same pre-pushback feature block is intended for Models 1 and 2A and is carried forward into Models 2B and 2C. Model
+The same pre-pushback feature block is intended for Models 1A and 2A and is carried forward into Models 2B and 2C. Model
 2B adds information available once pushback has occurred, and Model 2C adds taxi-out and takeoff information. In the
 table below, **Pre** means all four models, while **2B and 2C** marks information first available at pushback. Raw fields
 such as `Reporting_Airline`, `Origin`, `Dest`, `CRSElapsedTime`, `Distance`, the selected NOAA measurements, `WindX`,
@@ -836,10 +819,10 @@ must never be used.
 For Model 2B, the first comparison should use a minimal actual-departure update, such as signed `DepDelay` alone, followed
 by a deliberately chosen fuller representation. `DepTime`, `DepDelay`, `DepDelayMinutes`, `DepDel15`, and
 `DepartureDelayGroups` encode overlapping information and should not all be included automatically. `TaxiOut` and
-`WheelsOff` remain excluded from Models 1, 2A, and 2B.
+`WheelsOff` remain excluded from Models 1A, 2A, and 2B.
 
-The current merged JFK-year files contain flights **departing** JFK. Before building Models 2A, 2B,
-and 2C as defined in this README, the merge must also create the inbound population with `Dest` equal to JFK and attach
+The current Model 1A assembly logic contains flights **departing** JFK. Before building Models 2A, 2B, and 2C as defined
+in this README, their notebooks must create the inbound population with `Dest` equal to JFK and attach
 schedule, ASPM, and time-safe NOAA information for the flight origin at the relevant prediction time. The
 outbound rows or destination weather observed at landing must not be reused as a substitute. Pineda uses destination
 weather observed around landing, but that information is unavailable before pushback; it is eligible here only if a
