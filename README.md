@@ -1,37 +1,44 @@
-**ATTENTION: This submission is in progress. Expected completion Saturday, July 25, 2026.** 
-
 # Capstone Project - Berkeley ML and AI 
 ## Initial Report and Exploratory Data Analysis
 
 ## Overview
 
 This capstone investigates whether machine learning can predict significant delays for individual domestic flights
-departing from or arriving at:
-
-- **Primary airport:** John F. Kennedy International Airport (JFK)
-- **Optional airport stretch goals:** Chicago O'Hare International Airport (ORD) and Hartsfield-Jackson Atlanta
-  International Airport (ATL)
+departing from or arriving at John F. Kennedy International Airport (JFK).
 
 A significant delay is defined as a departure or arrival delay of 15 minutes or more. The project also explores 
 which flight, airport, and weather conditions are most closely associated with delays.
 
-The primary JFK analysis has four prediction goals:
+The JFK analysis is organized into two model categories.
+
+### Primary goal: predict departure delay
 
 1. **Model 1:** For a flight departing from JFK, predict before pushback whether the flight departs at least 15 minutes late.
-2. **Model 2A:** For a flight arriving at JFK, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
-3. **Model 2B:** For a flight arriving at JFK, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
-4. **Model 2C:** For a flight arriving at JFK, predict immediately after takeoff at the flight origin whether it arrives at least 15 minutes late, using the actual departure, taxi-out, and takeoff information.
 
-The first two models use only information available before pushback. The third adds the actual departure time
-and departure delay. The fourth model adds information that becomes known at takeoff, including taxi-out time.
-These stages show how arrival predictions improve as new operating information becomes available.
+### Secondary goal, if time allows: predict arrival delay
+
+1. **Model 2A:** For a flight arriving at JFK, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
+2. **Model 2B:** For a flight arriving at JFK, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
+3. **Model 2C:** For a flight arriving at JFK, predict immediately after takeoff at the flight origin whether it arrives at least 15 minutes late, using the actual departure, taxi-out, and takeoff information.
+
+The arrival-delay category applies the same basic flight-level classification approach as the departure-delay category:
+combine schedule, route, planned airport demand, and time-safe weather information to predict whether an individual
+flight crosses the 15-minute threshold. Model 2A uses the pre-pushback framework, Model 2B updates it with actual
+departure information, and Model 2C updates it again with taxi-out and takeoff information.
+
+Arrival-delay modeling has substantially larger and more complex data requirements. Model 1 uses flights departing from
+JFK and can use JFK ASPM and NOAA data. Models 2A, 2B, and 2C use flights arriving at JFK from many different origin
+airports. A complete implementation therefore requires appropriate ASPM and NOAA coverage for those origins, NOAA
+station mapping, source-specific cleaning and validation, and prediction-time-safe joins for every inbound flight.
+Because that work expands well beyond the single-airport departure pipeline, the arrival models are secondary goals to
+be attempted only after Model 1 is complete.
 
 Each model follows a clear prediction time. A field is included only if it would be known at that time; information
 recorded later is excluded even when it appears in the historical dataset. This prevents the model from learning from
 the future, often called data leakage. BTS provides the historical event values used for this analysis, but a working
 operational model would need equivalent gate-out and takeoff information from a suitable live source. Some 
 BTS columns represent events—such as gate departure and takeoff—that an airline or  airport operational system can observe 
-when they occur
+when they occur.
 
 The project combines three main data sources:
 
@@ -39,8 +46,35 @@ The project combines three main data sources:
 - Aviation System Performance Metrics (ASPM) [airport traffic and congestion data](https://www.aspm.faa.gov/apm/sys/main.asp)
 - National Oceanic and Atmospheric Administration (NOAA) [weather observations](https://www.ncei.noaa.gov/data/local-climatological-data/access/)
 
-Each flight is matched with ASPM scheduled airport demand and the most recent NOAA weather information available before the prediction is 
-made. This prevents the models from using information from the future.
+### Why arrival-delay prediction requires more data
+
+Each flight is represented by one BTS row containing both its `Origin` and `Dest`. The tables below identify the
+airport-specific ASPM and NOAA context attached to that row in the baseline design.
+
+#### Primary departure-delay scenario: Model 1
+
+| Airport role | BTS information used | ASPM context | NOAA context | Data footprint |
+|---|---|---|---|---|
+| JFK origin | Schedule, airline, route, distance, and `DepDel15` target | JFK planned traffic near scheduled departure | Latest JFK weather available by the prediction time | One ASPM airport and one NOAA station |
+| Flight destination | Destination identity and scheduled route information from the same BTS row | Not included in the baseline | Not included in the baseline | No additional airport-specific external-data pipeline |
+
+#### Secondary arrival-delay scenario: Models 2A, 2B, and 2C
+
+| Airport role | BTS information used | ASPM context | NOAA context | Data footprint |
+|---|---|---|---|---|
+| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields when available | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | As many as 79 origin airports across the study years |
+| JFK destination | Destination identity, scheduled arrival information, and `ArrDel15` target from the same BTS row | Not included in the baseline | Not included in the baseline | One fixed destination, but many inbound source airports |
+
+Both scenarios use the same basic idea: combine flight-level BTS information with planned airport demand and time-safe
+weather to classify whether a flight crosses the 15-minute delay threshold. The difference is the scale of the external
+data work. Model 1 always departs from JFK, so one ASPM dataset and one NOAA station pipeline can serve every row. In the
+arrival scenario, the departure airport changes from flight to flight. Each included origin needs ASPM coverage, a NOAA
+station mapping, source cleaning and validation, and its own prediction-time-safe joins.
+
+Models 2B and 2C also introduce later BTS operating events, but those fields do not create the main data expansion. The
+larger burden comes from collecting and validating consistent ASPM and NOAA context across the inbound origin set.
+Destination ASPM and weather are not part of the baseline arrival design. Weather later observed at landing is
+prohibited because it was not available when the prediction was made.
 
 The work includes:
 
@@ -53,8 +87,7 @@ The work includes:
 
 The project focuses on individual flights. Aircraft rotations, previous-flight chains, and delay spread through an airline 
 network are out of scope. The approach is informed by the flight-level delay research of Snell, Zoutendijk, and Pineda. 
-The final analysis focuses on model performance and the factors associated with delays at JFK. Repeating the analysis
-for ORD and ATL, and comparing results across airports, remains an optional stretch extension.
+The final analysis focuses on model performance and the factors associated with delays at JFK.
 
 ## Business Understanding
 
@@ -62,17 +95,19 @@ Flight delays create costs and disruption for passengers, airlines, and airports
 can help airlines communicate with passengers, adjust staffing and gate plans, and prepare for possible missed connections. 
 Airports can also use this information to better understand when congestion or weather is likely to affect operations.
 
-This project asks four core questions:
+The primary research question is:
 
 - Can a departure delay of 15 minutes or more be identified before pushback?
+
+If time allows, the arrival-delay extension asks:
+
 - Can an arrival delay of 15 minutes or more be identified before pushback?
 - How much does the arrival prediction improve once the actual departure delay is known?
 - How much more does the arrival prediction improve once taxi-out and takeoff information is known?
 
-The primary analysis examines JFK. If time permits, the same workflow can be applied to ORD and ATL to test whether the
-conditions associated with delay differ by airport. As emphasized by Snell, Zoutendijk, and Pineda, a useful result does
-more than produce a yes-or-no answer. It provides a reliable estimate of delay risk and clearly shows which schedule,
-airport, and weather conditions influence the prediction.
+The analysis examines JFK. As emphasized by Snell, Zoutendijk, and Pineda, a useful result does more than produce a
+yes-or-no answer. It provides a reliable estimate of delay risk and clearly shows which schedule, airport, and weather
+conditions influence the prediction.
 
 The models are intended as decision-support tools, not as proof that a particular factor caused a delay. Success is 
 judged by how well the models identify delayed flights, how often their warnings are correct, and whether their results 
@@ -80,8 +115,8 @@ can be explained in a useful way.
 
 ## Data Understanding
 
-The project brings together flight, airport, and weather data. Each record represents one flight. The airport of interest
-is the origin for Model 1 and the destination for Models 2A, 2B, and 2C. Airport and weather records
+The project brings together flight, airport, and weather data. Each record represents one flight. JFK is the origin for
+Model 1 and the destination for Models 2A, 2B, and 2C. Airport and weather records
 are added without changing this one-row-per-flight structure.
 
 ### Data Sources
@@ -98,16 +133,15 @@ describes scheduled airport demand, and NOAA describes the weather observed befo
 
 ### Data Coverage
 
-The primary modeling population consists of domestic flights departing from or arriving at JFK in 2019, 2023, and 2024.
-These years were selected to represent periods before and after the COVID-19 pandemic when the airport was operating at
-or near normal capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after
-the major pandemic-related disruptions had passed. Data already collected for ORD and ATL is retained to support the
-optional airport stretch goals.
+The primary modeling population consists of domestic flights departing from JFK in 2019, 2023, and 2024. The secondary
+arrival population, if modeled, consists of domestic flights arriving at JFK during the same years. These years were
+selected to represent periods before and after the COVID-19 pandemic when the airport was operating at or near normal
+capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after the major
+pandemic-related disruptions had passed.
 
 The exact division of the years and flights into training, development, and final test sets remains to be decided. 
 The split preserves time order so that the models are trained on earlier flights and evaluated
-on later flights they have not seen. Files use a consistent `AIRPORT_YEAR.csv` naming pattern. The primary pipeline uses
-the JFK files; the same processing steps can be applied to ORD and ATL if the airport stretch goals are attempted.
+on later flights they have not seen. Files use a consistent `JFK_YEAR.csv` naming pattern.
 
 ## Data Preparation
 
@@ -126,23 +160,17 @@ data/
 │   │   │   │   ├── On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_2019_2.csv
 │   │   │   │   └── readme.html
 │   │   │   ├── ... same monthly structure through 2019_12
-│   │   │   ├── ATL.csv
-│   │   │   ├── JFK.csv
-│   │   │   └── ORD.csv
+│   │   │   └── JFK.csv
 │   │   ├── 2023/
-│   │   │   └── ... same monthly and airport structure
+│   │   │   └── ... same monthly structure and annual JFK file
 │   │   └── 2024/
-│   │       └── ... same monthly and airport structure
+│   │       └── ... same monthly structure and annual JFK file
 │   ├── processed/
-│   │   ├── ATL_2019.csv
 │   │   ├── JFK_2019.csv
-│   │   ├── ORD_2019.csv
-│   │   └── ... through ATL, JFK, and ORD for 2024
+│   │   └── ... through JFK_2024.csv
 │   └── cleaned/
-│       ├── ATL_2019.csv
 │       ├── JFK_2019.csv
-│       ├── ORD_2019.csv
-│       └── ... through ATL, JFK, and ORD for 2024
+│       └── ... through JFK_2024.csv
 ├── aspm/
 │   ├── raw/
 │   │   ├── download_aspm_hourly_v3.py
@@ -150,65 +178,45 @@ data/
 │   │   ├── download_aspm_2023.sh
 │   │   ├── download_aspm_2024.sh
 │   │   └── aspm_output/
-│   │       ├── run_2019_ATL/
-│   │       │   ├── aspm_2019_ATL.csv
-│   │       │   └── raw_html/
-│   │       │       ├── ATL_2019-01-01.html
-│   │       │       ├── ATL_2019-01-02.html
-│   │       │       └── ... one HTML response per day through 2019-12-31
 │   │       ├── run_2019_JFK/
-│   │       ├── run_2019_ORD/
-│   │       └── ... through ATL, JFK, and ORD for 2024
+│   │       │   ├── aspm_2019_JFK.csv
+│   │       │   └── raw_html/
+│   │       │       ├── JFK_2019-01-01.html
+│   │       │       ├── JFK_2019-01-02.html
+│   │       │       └── ... one HTML response per day through 2019-12-31
+│   │       └── ... corresponding JFK runs for 2023 and 2024
 │   ├── processed/
-│   │   ├── ATL_2019.csv
 │   │   ├── JFK_2019.csv
-│   │   ├── ORD_2019.csv
-│   │   └── ... through ATL, JFK, and ORD for 2024
+│   │   └── ... through JFK_2024.csv
 │   └── cleaned/
-│       ├── ATL_2019.csv
 │       ├── JFK_2019.csv
-│       ├── ORD_2019.csv
-│       └── ... through ATL, JFK, and ORD for 2024
+│       └── ... through JFK_2024.csv
 ├── noaa/
 │   ├── raw/
 │   │   ├── 2019/
-│   │   │   ├── 72219013874.csv
-│   │   │   ├── 72530094846.csv
 │   │   │   └── 74486094789.csv
 │   │   ├── 2023/
-│   │   │   └── ... same three weather stations
+│   │   │   └── 74486094789.csv
 │   │   └── 2024/
-│   │       └── ... same three weather stations
+│   │       └── 74486094789.csv
 │   ├── processed/
-│   │   ├── ATL_2019.csv
 │   │   ├── JFK_2019.csv
-│   │   ├── ORD_2019.csv
-│   │   └── ... through ATL, JFK, and ORD for 2024
+│   │   └── ... through JFK_2024.csv
 │   └── cleaned/
-│       ├── ATL_2019.csv
 │       ├── JFK_2019.csv
-│       ├── ORD_2019.csv
-│       └── ... through ATL, JFK, and ORD for 2024
+│       └── ... through JFK_2024.csv
 ├── merged/
-│   ├── ATL_2019.csv
 │   ├── JFK_2019.csv
-│   ├── ORD_2019.csv
-│   └── ... through ATL, JFK, and ORD for 2024
+│   └── ... through JFK_2024.csv
 ├── features/
-│   ├── ATL_2019.csv
 │   ├── JFK_2019.csv
-│   ├── ORD_2019.csv
-│   └── ... through ATL, JFK, and ORD for 2024
+│   └── ... through JFK_2024.csv
 └── models/
-    ├── ATL_2019_m1.csv
-    ├── ATL_2019_m2a.csv
-    ├── ATL_2019_m2b.csv
-    ├── ATL_2019_m2c.csv
     ├── JFK_2019_m1.csv
     ├── JFK_2019_m2a.csv
     ├── JFK_2019_m2b.csv
     ├── JFK_2019_m2c.csv
-    └── ... same four model files for each airport and year
+    └── ... same four model files for 2023 and 2024
 ```
 
 The folders represent the main stages of the data:
@@ -219,21 +227,20 @@ The `raw` folders contain data as downloaded or first collected, along with the 
 
 BTS On-Time Performance data is provided as a separate compressed download for each month. Each monthly file contains 
 domestic flights reported by all included United States carriers, rather than data for a single airport. After the monthly files 
-are downloaded and extracted, `filter.py` reads all 12 files for a year, keeps flights where JFK, ORD, or ATL is either
-the origin or destination, and combines the matching records into one annual file for each airport. For example, 
-the 12 monthly files under `data/bts/raw/2019/` are used to produce `ATL.csv`, `JFK.csv`, and `ORD.csv` in that same 
-directory. These annual airport files become the inputs to the BTS processing notebook.
+are downloaded and extracted, `filter.py` reads all 12 files for a year, keeps flights where JFK is either the origin or
+destination, and combines the matching records into one annual `JFK.csv` file. For example, the 12 monthly files under
+`data/bts/raw/2019/` are used to produce `JFK.csv` in that same directory. This annual airport file becomes the input to
+the BTS processing notebook.
 
-ASPM data is collected with `download_aspm_hourly_v3.py`, which requests one FAA ASPM hourly report for each airport and
+ASPM data is collected with `download_aspm_hourly_v3.py`, which requests one FAA ASPM hourly report for JFK for each
 calendar day. The year-specific shell scripts supply the date range and airport code. Each run saves the original daily
 HTML responses under `raw_html/` and combines the extracted hourly records into one annual airport CSV, such as
-`aspm_2019_ATL.csv`. Keeping the HTML responses preserves the original reports while the annual CSV becomes the input to
+`aspm_2019_JFK.csv`. Keeping the HTML responses preserves the original reports while the annual CSV becomes the input to
 the ASPM processing notebook.
 
-NOAA Local Climatological Data is downloaded as one annual CSV for the weather station selected to represent each airport.
-Station `72219013874` represents ATL, `72530094846` represents ORD, and `74486094789` represents JFK. The files are grouped
-by year under `data/noaa/raw/`; for example, the three station files in `2019/` provide the raw weather observations used
-to produce the ATL, ORD, and JFK inputs for the NOAA processing notebook.
+NOAA Local Climatological Data is downloaded as one annual CSV for the weather station selected to represent JFK.
+Station `74486094789` represents JFK. The files are grouped by year under `data/noaa/raw/` and provide the raw weather
+observations used to produce the JFK inputs for the NOAA processing notebook.
 
 #### Processed
 
@@ -258,7 +265,7 @@ continuous measurements are also filled during the current cleaning process. Bef
 limited to weather already observed at the relevant prediction time so a later observation cannot influence an earlier
 flight.
 
-The cleaned BTS, ASPM, and NOAA airport-year files remain separate until the merge step. The merge keeps one row per
+The cleaned BTS, ASPM, and NOAA JFK-year files remain separate until the merge step. The merge keeps one row per
 flight and adds the appropriate scheduled airport demand and time-matched weather observation.
 
 Cleaning a field does not automatically make it a valid predictor. Some retained BTS fields are outcomes, validation
@@ -271,8 +278,8 @@ in more detail.
 
 #### Merged
 
-The `merged` folder contains one file for each airport and year. Each row represents one completed, non-diverted flight
-departing the selected airport. The original flight-level structure is preserved while planned ASPM arrivals and
+The `merged` folder contains one JFK file for each year. Each row represents one completed, non-diverted flight departing
+JFK. The original flight-level structure is preserved while planned ASPM arrivals and
 departures for the previous, current, and next clock hours are added. The latest NOAA weather observation available
 before scheduled departure is also attached.
 
@@ -283,14 +290,13 @@ complete merged column dictionary and explains the timing and intended use of ea
 
 #### Features
 
-The `features` folder contains one feature-engineered file for each airport and year. These files remain partitioned by airport and year unless a modeling requirement provides a clear reason to combine them.
+The `features` folder contains one feature-engineered JFK file for each year.
 
 #### Models
 
-The `models` folder contains four model-ready projections for each airport-year feature file. The `_m1`, `_m2a`, `_m2b`,
-and `_m2c` suffixes identify the four prediction scenarios. Each file includes only the predictors and outcome allowed
-at that prediction time. JFK is the primary modeling airport; ORD and ATL projections are needed only if the airport
-stretch goals are attempted.
+The `models` folder contains the primary `_m1` projection for each JFK-year feature file. If the secondary arrival work
+is completed, the folder also contains `_m2a`, `_m2b`, and `_m2c` projections. Each file includes only the predictors and
+outcome allowed at that prediction time.
 
 The processing and cleaning work is recorded in separate notebooks for BTS, ASPM, and NOAA. A separate merge notebook combines the three cleaned sources.
 
@@ -305,25 +311,25 @@ Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘       �
                                                       │
                                                       ▼
                                              Merged flight data
-                                           AIRPORT_YEAR.csv
+                                             JFK_YEAR.csv
                                                       │
                                                       ▼
                                              Feature engineering
                                                       │
                                                       ▼
-                                         features/AIRPORT_YEAR.csv
+                                           features/JFK_YEAR.csv
                                                       │
                     ┌─────────────────┬───────────────┼───────────────┬─────────────────┐
                     ▼                 ▼               ▼               ▼
-     models/AIRPORT_YEAR_m1.csv  models/..._m2a.csv  models/..._m2b.csv  models/..._m2c.csv
-     Departure before pushback   Arrival before      Arrival after      Arrival after
-                                 pushback             pushback           takeoff
+       models/JFK_YEAR_m1.csv  models/..._m2a.csv  models/..._m2b.csv  models/..._m2c.csv
+       Primary: departure       Secondary: arrival  Secondary: arrival  Secondary: arrival
+       before pushback          before pushback      after pushback      after takeoff
 ```
 
 Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The
 cleaned sources are merged into a single flight-level dataset. Feature engineering creates additional values from the
-existing dates, times, routes, congestion measures, and weather conditions. The resulting data is then separated into
-four model datasets according to what information is allowed at each prediction time.
+existing dates, times, routes, congestion measures, and weather conditions. The primary output is the Model 1 dataset.
+The three arrival-model datasets are produced only if the broader origin-side data requirements can be completed.
 
 ### Matching Records by Time
 
@@ -337,12 +343,12 @@ This time-based matching prevents a model from using airport conditions or weath
 
 ### Model Outcomes and Available Information
 
-| Model | Outcome | Information available when the prediction is made |
-|---|---|---|
-| Model 1 | `DepDel15` | Flight schedule, earlier airport conditions, and earlier weather observations |
-| Model 2A | `ArrDel15` | The same information available to Model 1 |
-| Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
-| Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
+| Category | Model | Outcome | Information available when the prediction is made |
+|---|---|---|---|
+| Primary: departure | Model 1 | `DepDel15` | Flight schedule, earlier airport conditions, and earlier weather observations |
+| Secondary: arrival | Model 2A | `ArrDel15` | The same general pre-pushback information as Model 1, collected for the flight origin |
+| Secondary: arrival | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
+| Secondary: arrival | Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
 
 The merged data is explored and expanded with features that summarize time of day, season, route, distance, congestion, and weather. Each model excludes information recorded after its stated prediction time.
 
@@ -374,7 +380,7 @@ The merged data is explored and expanded with features that summarize time of da
 
 ## BTS Column Selection and Dictionary
 
-The downloaded BTS airport-year file contains 110 columns. Processing removes cancelled and diverted flights and drops 83 
+The downloaded BTS JFK-year file contains 110 columns. Processing removes cancelled and diverted flights and drops 83
 source columns that are redundant, describe events outside the project scope, or would reveal information that is not 
 available when a prediction is made. Cleaning validates the remaining fields and adds `DATE`, producing 28 columns before 
 the ASPM and NOAA merge.
@@ -419,9 +425,9 @@ of Model 2B would receive gate-departure information from a suitable live feed, 
 | `Reporting_Airline` | BTS reporting carrier code. | Retained as the main airline identifier. |
 | `Tail_Number` | Aircraft registration or tail number. | Retained for audit and validation. It is not intended as a model feature because aircraft-chain and propagation modeling are out of scope. |
 | `Flight_Number_Reporting_Airline` | Flight number assigned by the reporting carrier. | Retained as a flight identifier and possible categorical feature; it is not treated as a continuous quantity. |
-| `Origin` | Three-letter origin airport code. | Retained to identify flights originating at the airport of interest for Model 1 and the departure airport for Models 2A, 2B, and 2C. |
+| `Origin` | Three-letter origin airport code. | Retained to identify flights originating at JFK for Model 1 and the departure airport for Models 2A, 2B, and 2C. |
 | `OriginState` | Two-letter state code for the origin airport. | Retained as a compact geographic field. |
-| `Dest` | Three-letter destination airport code. | Retained to identify flights arriving at the airport of interest for Models 2A, 2B, and 2C. |
+| `Dest` | Three-letter destination airport code. | Retained to identify flights arriving at JFK for Models 2A, 2B, and 2C. |
 | `DestState` | Two-letter state code for the destination airport. | Retained as a compact geographic field. |
 | `CRSDepTime` | Computer Reservation System scheduled departure time in local HHMM form. | Retained because it is known before departure and is used to construct the exact scheduled departure timestamp. |
 | `DepTime` | Actual gate departure time in local HHMM form. | Retained as the event-time field for Model 2B and for descriptive analysis. It is excluded from Models 1 and 2A because gate-out has not occurred when those predictions are made. BTS supplies the historical value; a deployed Model 2B would require an operational gate-out feed. |
@@ -600,7 +606,9 @@ offset is positive because that record describes planned demand after the flight
 
 ## NOAA Column Selection and Dictionary
 
-The NOAA data describes weather observed near each airport. Only hourly fields that are useful for the delay models are kept. Daily and monthly summaries are dropped because they do not describe conditions at a specific prediction time and may include weather that occurred later.
+The NOAA data describes weather observed near JFK. Only hourly fields that are useful for the delay models are kept.
+Daily and monthly summaries are dropped because they do not describe conditions at a specific prediction time and may
+include weather that occurred later.
 
 Each model uses the most recent NOAA observation available by its prediction time. Later observations are excluded to prevent data leakage. Missing weather values must also be handled with a past-only method so that an earlier record is not filled using future weather.
 
@@ -647,7 +655,7 @@ During the merge, `DATE` becomes `NOAA_DATE` so it is not confused with the flig
 
 ## Merged Dataset Column Dictionary
 
-Each merged airport-year file contains one row per completed, non-diverted flight departing the selected airport. The
+Each merged JFK-year file contains one row per completed, non-diverted flight departing JFK. The
 current dataset has 71 columns: 28 BTS flight fields, 24 ASPM planned-demand and join-audit fields, and 19 NOAA weather
 and join-audit fields.
 
@@ -830,7 +838,7 @@ by a deliberately chosen fuller representation. `DepTime`, `DepDelay`, `DepDelay
 `DepartureDelayGroups` encode overlapping information and should not all be included automatically. `TaxiOut` and
 `WheelsOff` remain excluded from Models 1, 2A, and 2B.
 
-The current merged airport-year files contain flights **departing** the selected airport. Before building Models 2A, 2B,
+The current merged JFK-year files contain flights **departing** JFK. Before building Models 2A, 2B,
 and 2C as defined in this README, the merge must also create the inbound population with `Dest` equal to JFK and attach
 schedule, ASPM, and time-safe NOAA information for the flight origin at the relevant prediction time. The
 outbound rows or destination weather observed at landing must not be reused as a substitute. Pineda uses destination
