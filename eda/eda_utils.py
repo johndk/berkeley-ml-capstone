@@ -8,8 +8,9 @@ import numpy as np
 import pandas as pd
 
 
-AIRPORTS = ("ATL", "JFK", "ORD")
+AIRPORTS = ("JFK",)
 YEARS = (2019, 2023, 2024)
+MODELS = ("m1a", "m2a", "m2b", "m2c")
 TARGET_COLUMNS = ("DepDel15", "ArrDel15")
 DATE_COLUMNS = (
     "FlightDate",
@@ -42,44 +43,57 @@ def find_project_root(start: Path | None = None) -> Path:
     """Find the capstone root whether a notebook starts in root or eda/."""
     current = (start or Path.cwd()).resolve()
     for candidate in (current, *current.parents):
-        if (candidate / "data" / "merged").is_dir():
+        if (candidate / "data" / "models").is_dir():
             return candidate
     raise FileNotFoundError(
-        "Could not locate data/merged. Run the notebook from the capstone "
+        "Could not locate data/models. Run the notebook from the capstone "
         "directory or its eda subdirectory."
     )
 
 
-def merged_file(airport: str, year: int, project_root: Path | None = None) -> Path:
-    """Return the merged CSV path for an airport and year."""
+def model_file(
+    airport: str,
+    year: int,
+    model: str = "m1a",
+    project_root: Path | None = None,
+) -> Path:
+    """Return the CSV path for an airport, year, and model dataset."""
     airport = airport.upper()
+    model = model.lower()
     if airport not in AIRPORTS:
         raise ValueError(f"AIRPORT must be one of {AIRPORTS}; received {airport!r}.")
     if year not in YEARS:
         raise ValueError(f"YEAR must be one of {YEARS}; received {year!r}.")
+    if model not in MODELS:
+        raise ValueError(f"MODEL must be one of {MODELS}; received {model!r}.")
 
     root = project_root or find_project_root()
-    path = root / "data" / "merged" / f"{airport}_{year}.csv"
+    path = root / "data" / "models" / f"{airport}_{year}_{model}.csv"
     if not path.exists():
-        raise FileNotFoundError(f"Merged dataset not found: {path}")
+        raise FileNotFoundError(f"Model dataset not found: {path}")
     return path
 
 
-def available_merged_files(project_root: Path | None = None) -> list[Path]:
-    """List merged airport-year CSV files in a stable order."""
+def available_model_files(
+    model: str | None = None,
+    project_root: Path | None = None,
+) -> list[Path]:
+    """List model CSV files in a stable order, optionally for one model."""
     root = project_root or find_project_root()
-    return sorted((root / "data" / "merged").glob("*.csv"))
+    pattern = f"JFK_*_{model.lower()}.csv" if model else "JFK_*_m*.csv"
+    return sorted((root / "data" / "models").glob(pattern))
 
 
-def load_merged(
+def load_model(
     airport: str,
     year: int,
+    model: str = "m1a",
     *,
     usecols: list[str] | None = None,
     project_root: Path | None = None,
 ) -> pd.DataFrame:
-    """Load one merged dataset and parse any requested timestamp columns."""
-    path = merged_file(airport, year, project_root)
+    """Load one model dataset and parse any requested timestamp columns."""
+    path = model_file(airport, year, model, project_root)
     parse_dates = [
         column
         for column in DATE_COLUMNS

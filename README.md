@@ -320,8 +320,11 @@ fields, or operating events available only to a later model. Fields published to
 as ASPM's realized performance measures, are removed. The model-ready files later enforce the exact information
 available at each prediction time and prevent time leakage.
 
-Appendix A describes the retained and removed columns, source-specific transformations, and prediction-time restrictions
-in more detail.
+[Appendix A](#appendix-a) documents these decisions in more detail: the
+[BTS column selection and timing rules](#bts-column-selection-and-dictionary),
+[ASPM planned-demand fields](#aspm-column-selection-and-dictionary),
+[NOAA weather fields](#noaa-column-selection-and-dictionary), and the
+[joined model-assembly columns](#joined-model-assembly-column-dictionary).
 
 #### Models
 
