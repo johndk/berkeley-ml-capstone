@@ -429,15 +429,20 @@ and [NOAA weather fields](#noaa-column-selection-and-dictionary).
 
 ### Model Data
 
-The `models` folder contains one dataset file for each model and year. The `_m1a`, `_m2a`, `_m2b`, and `_m2c` suffixes
-identify the prediction scenario. Each file includes only the predictors and outcome allowed at that prediction time.
-The file can contain both baseline predictors and permitted engineered-feature candidates. Baseline and engineered
-variants are defined as feature subsets and compared within the corresponding notebook rather than stored as separate
-files or directory trees.
+The `models` folder contains the initial baseline dataset for each prediction scenario and year:
+`JFK_YEAR_m1a.csv`, `JFK_YEAR_m2a.csv`, `JFK_YEAR_m2b.csv`, and `JFK_YEAR_m2c.csv`. The `_m1a`, `_m2a`, `_m2b`, and
+`_m2c` suffixes identify the model scenario and its prediction-time information boundary. Each baseline file contains
+only the baseline predictors and target permitted for that scenario.
 
-The processing and cleaning work is recorded in separate notebooks for BTS, ASPM, and NOAA. The four model notebooks
-perform the model-specific joins, validation, feature engineering, and final column projection directly from those
-cleaned inputs.
+Engineered features are created on top of the corresponding fixed baseline dataset. The baseline files remain unchanged
+so every engineered-feature experiment starts from the same reproducible data. Baseline and engineered variants are
+defined as feature projections and compared within the modeling workflow rather than replacing the `_m1a`, `_m2a`,
+`_m2b`, or `_m2c` files. The candidate engineered features are documented in
+[Appendix B: Feature Engineering](#feature-engineering).
+
+The processing and cleaning work is recorded in separate notebooks for BTS, ASPM, and NOAA. The four model-assembly
+notebooks perform the scenario-specific joins, validation, and fixed baseline column projection directly from those
+cleaned inputs. Feature engineering and model experiments then begin with the resulting baseline files.
 
 ## Modeling
 
@@ -470,24 +475,21 @@ This appendix documents source-column selection, processing decisions, and timin
 
 ## BTS Column Selection and Dictionary
 
-The downloaded BTS JFK-year file contains 110 columns. Processing removes cancelled and diverted flights and drops 83
-source columns that are redundant, describe events outside the project scope, or would reveal information that is not 
-available when a prediction is made. Cleaning validates the remaining fields and adds `DATE`, producing 28 columns before 
-the ASPM and NOAA merge.
+The downloaded BTS data contains 110 columns. Processing removes cancelled and diverted flights and drops 83
+unneeded columns. Cleaning validates the remaining fields and adds `DATE`, producing 28 columns before 
+the ASPM and NOAA merge join.
 
 Column selection is based on both usefulness and timing. A value may be useful for describing a completed flight but 
 still be an invalid predictor if it becomes known only after the model's prediction time. Using such a value would give 
-the model information from the future, commonly called target or time leakage. For this reason, retaining a column in the 
-cleaned data does not automatically make it an input to every model. Separate model-ready datasets enforce the information 
-boundary for each prediction.
+the model information from the future, commonly called target or time leakage.
 
-BTS publishes the On-Time Performance data as a historical reporting dataset; it is not the proposed live source for an
-operational model. However, some BTS columns represent events—such as gate departure and takeoff—that an airline or 
-airport operational system can observe when they occur. This capstone uses the historical BTS values to test how 
-predictions change at those event times. It therefore makes an explicit deployment assumption: an operational version 
-of Model 2B would receive gate-departure information from a suitable live feed, not wait for the later BTS publication.
+BTS publishes the On-Time Performance data as a historical reporting dataset. However, some BTS columns represent events—such as gate departure and takeoff—that an airline or 
+airport operational system can observe when they occur.
 
-`DepTime`, `TaxiOut`, and `WheelsOff` are retained because they mark useful and clearly different information points. `DepTime` is the actual gate-out or pushback time and is eligible for Model 2B. `TaxiOut` is not complete, and `WheelsOff` is not known, until takeoff; both are excluded from Models 1A, 2A, and 2B. They become eligible for Model 2C, which updates the arrival-delay prediction immediately after takeoff. Arrival results remain targets or retrospective analysis fields and are never predictors.
+`DepTime`, `TaxiOut`, and `WheelsOff` are retained because they mark useful and clearly different information points.
+`DepTime` is the actual gate-out or pushback time and is eligible for Model 2B. `TaxiOut` is not complete, and `WheelsOff` 
+is not known, until takeoff; both are excluded from Models 1A, 2A, and 2B. They become eligible for Model 2C, which updates 
+the arrival-delay prediction immediately after takeoff.
 
 ### Prediction-time eligibility of key BTS operational fields
 
@@ -645,8 +647,6 @@ BTS can record details for as many as five diversion stops. Because diverted fli
 The downloaded ASPM hourly file contains 18 columns. The project keeps the airport, date, hour, scheduled departures, and scheduled arrivals. Cleaning also creates `DATE`, giving the cleaned ASPM data six columns. The scheduled counts represent planned airport demand and are assumed to be accurate hourly summaries of the schedule. Historical schedule counts may include later revisions, so this is a practical project assumption.
 
 The other 13 source columns are dropped. They contain supporting calculation counts or summaries of actual airport performance, such as on-time percentages and average delays. ASPM generally publishes these operational results as part of the following day's update, so they are not available close enough to departure or arrival time for the project's predictions. Looking at the previous operating hour would not solve that publication delay.
-
-These operational fields could be used in a separate historical analysis, but that work is outside the capstone scope. Excluding them keeps the feature set focused on information that is useful and reasonably available at prediction time.
 
 ### ASPM columns retained for modeling
 
