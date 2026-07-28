@@ -448,8 +448,10 @@ cleaned inputs. Feature engineering and model experiments then begin with the re
 
 Baseline models for the capstone check-in requirement - "Develop an appropriate classification or 
 regression ML model to utilize as baseline for your analysis" - can be found
-- [decision_tree.ipynb](models/decision_tree.ipynb)
-- [logistic_regression.ipynb](models/logistic_regression.ipynb)
+- [decision_tree_01.ipynb](models/decision_tree_01.ipynb)
+- [decision_tree_02.ipynb](models/decision_tree_02.ipynb)
+- [logistic_regression_01.ipynb](models/logistic_regression_01.ipynb)
+- [logistic_regression_02.ipynb](models/logistic_regression_02.ipynb)
 
 ## Evaluation
 
