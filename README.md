@@ -62,17 +62,21 @@ departing from or arriving at John F. Kennedy International Airport (JFK).
 A significant delay is defined as a departure or arrival delay of 15 minutes or more. The project also explores 
 which flight, airport, and weather conditions are most closely associated with delays.
 
+The project combines three main data sources:
+
+- Bureau of Transportation Statistics (BTS) [flight schedules and performance data](https://www.transtats.bts.gov/DL_SelectFields.aspx?gnoyr_VQ=FGJ&QO_fu146_anzr=b0-gvzr)
+- Aviation System Performance Metrics (ASPM) [airport traffic and congestion data](https://www.aspm.faa.gov/apm/sys/main.asp)
+- National Oceanic and Atmospheric Administration (NOAA) [weather observations](https://www.ncei.noaa.gov/data/local-climatological-data/access/)
+
 The JFK analysis is organized into two model categories.
 
 ### Predict departure delay
-
-This is the primary goal of the capstone project.
 
 1. **Model 1A:** For a flight departing from JFK, predict before pushback whether the flight departs at least 15 minutes late.
 
 ### Predict arrival delay
 
-These are secondary goals of the capstone project that will be explored ~~if time allows~~. Arrival-delay modeling has substantially larger and more complex data requirements.
+Arrival-delay modeling has substantially larger and more complex data requirements.
 
 1. **Model 2A:** For a flight arriving at JFK, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
 2. **Model 2B:** For a flight arriving at JFK, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
@@ -87,8 +91,6 @@ Arrival-delay modeling has substantially larger and more complex data requiremen
 JFK and can use JFK ASPM and NOAA data. Models 2A, 2B, and 2C use flights arriving at JFK from many different origin
 airports. A complete implementation therefore requires appropriate ASPM and NOAA coverage for those origins, NOAA
 station mapping, source-specific cleaning and validation, and joins for every inbound flight.
-Because that work expands well beyond the single-airport departure pipeline, the arrival models are secondary goals to
-be attempted only after Model 1A is complete.
 
 Each model follows a clear prediction time. A field is included only if it would be known at that time; information
 recorded later is excluded even when it appears in the historical dataset. This prevents the model from learning from
@@ -96,12 +98,6 @@ the future, often called data leakage. BTS provides the historical event values 
 operational model would need equivalent gate-out and takeoff information from a suitable live source. Some 
 BTS columns represent events—such as gate departure and takeoff—that an airline or  airport operational system can observe 
 when they occur.
-
-The project combines three main data sources:
-
-- Bureau of Transportation Statistics (BTS) [flight schedules and performance data](https://www.transtats.bts.gov/DL_SelectFields.aspx?gnoyr_VQ=FGJ&QO_fu146_anzr=b0-gvzr)
-- Aviation System Performance Metrics (ASPM) [airport traffic and congestion data](https://www.aspm.faa.gov/apm/sys/main.asp)
-- National Oceanic and Atmospheric Administration (NOAA) [weather observations](https://www.ncei.noaa.gov/data/local-climatological-data/access/)
 
 ### Why arrival-delay prediction requires more data
 
@@ -190,8 +186,7 @@ describes scheduled airport demand, and NOAA describes the weather observed befo
 
 ### Data Coverage
 
-The primary modeling population consists of domestic flights departing from JFK in 2019, 2023, and 2024. The secondary
-arrival population, ~~if modeled,~~ consists of domestic flights arriving at JFK during the same years. These years were
+The modeling population consists of domestic flights departing from and arriving at JFK in 2019, 2023, and 2024. These years were
 selected to represent periods before and after the COVID-19 pandemic when the airport was operating at or near normal
 capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after the major
 pandemic-related disruptions had passed.
@@ -218,17 +213,13 @@ Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘         
                      ▼                   ▼                    ▼                   ▼
              data/models/         data/models/        data/models/        data/models/
              JFK_YEAR_m1a.csv     JFK_YEAR_m2a.csv    JFK_YEAR_m2b.csv    JFK_YEAR_m2c.csv
-             Primary              Secondary           Secondary           Secondary
 ```
 
 Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The
 four model notebooks load the cleaned sources directly, perform their permitted time-safe joins, and create the
-corresponding model datasets. `model_1a.ipynb` produces the primary departure dataset. The three arrival notebooks are
-used ~~only if the broader origin-side data requirements can be completed~~. Within each notebook, the baseline feature set
+corresponding model datasets. `model_1a.ipynb` produces the departure dataset. Within each notebook, the baseline feature set
 is evaluated first and engineered features are then applied on top of that baseline to determine whether they improve
-performance. See [Appendix B: Feature Engineering](#feature-engineering) for the candidate features, their construction and rationale,
-and the controls used to evaluate them without leakage. Joined working dataframes and audit columns may exist inside a
-notebook for validation, but they are not saved as separate merged or feature files.
+performance. See [Appendix B: Feature Engineering](#feature-engineering) for the candidate features, their construction and rationale.
 
 ### Matching Records by Time
 
@@ -242,12 +233,12 @@ This time-based matching prevents a model from using airport conditions or weath
 
 ### Model Outcomes and Available Information
 
-| Category | Model | Outcome | Information available when the prediction is made |
-|---|---|---|---|
-| Primary: departure | Model 1A | `DepDel15` | Flight schedule, earlier airport conditions, and earlier weather observations |
-| Secondary: arrival | Model 2A | `ArrDel15` | The same general pre-pushback information as Model 1A, collected for the flight origin |
-| Secondary: arrival | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
-| Secondary: arrival | Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
+| Category  | Model | Outcome | Information available when the prediction is made |
+|-----------|---|---|---|
+| Departure | Model 1A | `DepDel15` | Flight schedule, earlier airport conditions, and earlier weather observations |
+| Arrival   | Model 2A | `ArrDel15` | The same general pre-pushback information as Model 1A, collected for the flight origin |
+| Arrival   | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
+| Arrival   | Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
 
 Each model notebook engineers features that summarize time of day, season, route, distance, congestion, and weather. Each
 saved model dataset excludes information recorded after its stated prediction time.
