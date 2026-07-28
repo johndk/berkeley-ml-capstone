@@ -327,7 +327,7 @@ def main() -> int:
     output_path = run_dir / output_filename
     raw_dir = run_dir / "raw_html"
     failure_path = run_dir / "failures.csv"
-    run_dir.mkdir(parents=True, exist_ok=False)
+    run_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Planned requests: {total}", flush=True)
     print(f"Run directory: {run_dir}", flush=True)

@@ -28,6 +28,12 @@ START_DATE="2023-01-01"
 END_DATE="2023-12-31"
 RUN_NAME="run_2023_${AIRPORT}"
 OUTPUT_FILE="aspm_2023_${AIRPORT}.csv"
+RAW_HTML_DIR="aspm_output/${RUN_NAME}/raw_html"
+
+if [[ -e "$RAW_HTML_DIR" ]]; then
+    echo "Removing previous raw HTML directory: $RAW_HTML_DIR"
+    rm -rf -- "$RAW_HTML_DIR"
+fi
 
 echo
 echo "==========================================================="
