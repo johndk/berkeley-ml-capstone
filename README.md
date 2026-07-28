@@ -439,10 +439,132 @@ cleaned inputs. Feature engineering and model experiments then begin with the re
 
 Baseline models for the capstone check-in requirement - "Develop an appropriate classification or 
 regression ML model to utilize as baseline for your analysis" - can be found here:
+
 - [decision_tree_01.ipynb](models/decision_tree_01.ipynb)
 - [decision_tree_02.ipynb](models/decision_tree_02.ipynb)
 - [logistic_regression_01.ipynb](models/logistic_regression_01.ipynb)
 - [logistic_regression_02.ipynb](models/logistic_regression_02.ipynb)
+
+### What the baseline models show
+
+The main point is simple: the current models are a starting point, not the finished analysis. They use a small set of
+basic inputs and do somewhat better than guessing, but they do not yet identify delayed flights well enough. The next
+stage will describe each flight more carefully, try stronger models, and test whether they can predict flights that
+occur later in time.
+
+The four notebooks above are four experiments for Model 1A. They do not yet represent all four project models. The
+`_01` notebooks contain the selected logistic-regression and decision-tree models. The `_02` notebooks show how their
+settings were chosen with grid searches. All four notebooks use the same 2019 departure data and the same 20 basic
+schedule, airline, destination, airport-traffic, and weather columns. They do not yet use the engineered features in
+Appendix B, and they have not yet been tested with the 2023 or 2024 data.
+
+The models have some ability to place delayed flights above on-time flights when flights are ordered from highest to
+lowest predicted risk, but that ability is still limited. The score used to measure the quality of that ordered list,
+called average precision, is 0.3595 for logistic regression and 0.3968 for the decision tree. A model with no useful
+ordering ability would score close to the delayed-flight rate of 0.1887. A second ranking measure, ROC AUC, gives the
+models scores of 0.6996 and 0.7060. Both measures show the same basic result: the models have learned something, but
+they still confuse many delayed and on-time flights.
+
+The default logistic-regression threshold of 0.50 identifies only 3.04% of delayed flights. Lowering the threshold to
+0.225 raises that figure to 55.66%. However, only 32.60% of its delay warnings are correct, so it also creates many false
+alarms. The decision tree identifies 64.07% of delayed flights, but only 30.39% of its delay warnings are correct. These
+results show why overall accuracy is not enough. Because most flights are on time, a model can appear accurate simply
+by predicting that almost every flight will be on time. The project must report both how many real delays are found and
+how many warnings are correct.
+
+Changing the logistic-regression threshold does not make the underlying model better at ranking flights by risk. It
+only changes how many flights are labeled as delayed. Improving the model itself will require better inputs, additional
+model types, and stronger testing.
+
+### Planned improvements
+
+The next work will proceed in a clear sequence:
+
+1. **Describe each flight more clearly with the data already collected.** The baseline currently treats scheduled times
+   such as `2300` as ordinary numbers. That does not tell the model that 23:00 is close to 00:00. The improved version
+   will represent the clock in a way that keeps nearby times close together. Other planned inputs include time of day,
+   season, route, airline and destination combinations, total scheduled traffic around departure, changes in scheduled
+   traffic, and simple adverse-weather indicators.
+   [Pineda et al.](resources/docs/15_Pineda_ExplainableDelayML.pdf) found that time of day, destination, weather, and
+   combinations of inputs helped explain delays.
+   [Li](resources/docs/04_Li_DelayPropagationPrediction.pdf) and
+   [Chen and Li](resources/docs/06_Chen_ChainedDelayPrediction.pdf) also found airport operating conditions useful.
+   Groups of new inputs will be added one at a time so that any improvement can be traced to a specific change.
+
+2. **Try models that can find patterns the current models miss.** A single decision tree makes all of its choices through
+   one tree. A random forest combines the results of many different trees. A gradient-boosted model builds a series of
+   trees, with each new tree trying to correct mistakes made by the earlier trees. These are reasonable next models for
+   this project. [Snell et al.](resources/docs/02_Snell_MLFlightDelayPrediction.pdf) and
+   [AlBassam](resources/docs/05_AlBassam_MLDelayEval.pdf) found that combined-tree models and methods for handling the
+   smaller delayed class improved results in their datasets. Their reported scores cannot be compared directly with
+   this project because the airports, features, and prediction times differ. Class weighting will be tested, and SMOTE
+   may also be tested. SMOTE creates additional training examples that resemble delayed flights, giving the model more
+   delayed examples from which to learn. These created examples must remain in training data and must never enter
+   validation or test data.
+
+3. **Test models in time order.** The current random split places flights from throughout 2019 into both training and
+   test sets. Flights from the same day can therefore appear on both sides of the split and share similar weather,
+   schedules, congestion, or disruptions. That makes the test data more similar to the training data than future
+   flights would be. The improved test will keep complete days together and always train on earlier flights before
+   evaluating later flights. Earlier parts of 2019 can be used to predict later parts of 2019 while features and model
+   settings are being developed. The selected model can then be trained on 2019 and checked on 2023. After all choices
+   are settled, 2024 can remain untouched for the final test. This will show whether the model continues to work after
+   schedules, airlines, traffic levels, and operating conditions change. Beltman et al. also kept complete days
+   together to reduce the chance that closely related same-day information appeared in both training and test data.
+
+4. **Check whether the predicted chances of delay are believable.** If the model gives a group of flights a 30% chance
+   of delay, roughly 30% of those flights should actually be delayed. A simple chart can compare predicted chances with
+   what actually happened. A summary measure called the Brier score can report the size of the difference. Believable
+   probabilities are important because the best warning threshold depends on how costly it is to miss a delay compared
+   with issuing a false warning. [Zoutendijk and Mitici](resources/docs/03_Zoutendijk_ProbabilisticFlightDelay.pdf)
+   and [Beltman et al.](resources/docs/16_Beltman_DepartureDelayForecast.pdf) show why the uncertainty around a delay
+   prediction can be useful for airport and airline decisions.
+
+5. **Explain what the models learned.** Logistic-regression coefficients and decision-tree feature importance provide
+   a starting point. More complicated models are harder to understand because their answer comes from many decisions
+   spread across many trees. SHAP is a method for turning those decisions into a readable explanation. For one flight,
+   it shows which inputs raised the predicted chance of delay and which inputs lowered it. Across many flights, it shows
+   which inputs most often influenced the predictions.
+
+   SHAP was not covered in the course, and it is not needed to fit a model. It is valuable for this capstone because the
+   result should explain more than which model earned the highest score. It should also show whether the model is using
+   reasonable information, such as time, weather, route, and planned airport traffic. It may also reveal a problem, such
+   as a model depending too heavily on one airline or one route. SHAP explains what the model learned from the data; it
+   does not prove that an input caused a delay. Pineda et al. use this kind of explanation to connect model results with
+   practical flight-delay factors.
+
+The final comparison will also examine where each model fails, including results by month, time of day, airline, route,
+weather, and airport traffic. This may reveal that a model works well under normal conditions but poorly during severe
+weather or unusually congested periods.
+
+### Why the arrival models may improve
+
+Models 2A, 2B, and 2C predict the same arrival-delay outcome at three different points in the flight:
+
+| Model | Prediction time | Information added |
+|---|---|---|
+| 2A | Before pushback at the origin | Schedule, route, origin airport traffic, and origin weather |
+| 2B | Immediately after pushback | Model 2A information plus actual gate-out time and departure delay |
+| 2C | Immediately after takeoff | Model 2B information plus taxi-out time and actual takeoff time |
+
+There is good reason to expect Models 2B and 2C to improve on Model 2A. Li and Chen found that departure delay was the
+most important input for predicting arrival delay, and their predictions improved as actual departure information was
+added. Snell et al. also reported better arrival predictions after adding actual departure-delay information.
+
+The improvement is still something this project must demonstrate. Zoutendijk and Mitici found that arrival delays were
+harder to predict than departure delays in their data. This project's arrival data also includes many origin airports,
+while Model 1A always begins at JFK. The arrival problem may therefore contain more variation in weather, traffic, and
+airport operations.
+
+Models 2A, 2B, and 2C will be compared using the same flights and the same date ranges. Only the newly available
+operating information will change from one model to the next. This will show whether actual departure delay and takeoff
+information really improve the predictions. It will also show an important tradeoff: a prediction made after takeoff
+may be more accurate, but it gives the airline and passengers less advance warning.
+
+The timing rules must remain strict. `DepTime` and `DepDelay` cannot be used in Model 2A because they are not known
+before pushback. `TaxiOut` and `WheelsOff` cannot be used in Models 2A or 2B because they are not fully known until
+takeoff. Keeping these fields out of the earlier models ensures that any improvement is based on information that
+would truly have been available at that prediction time.
 
 ## Evaluation
 
