@@ -446,8 +446,10 @@ cleaned inputs. Feature engineering and model experiments then begin with the re
 
 ## Modeling
 
-The baseline logistic regression model for the capstone check-in requirement "Develop an appropriate classification or 
-regression ML model to utilize as baseline for your analysis", can be found [here](./models/linreg.ipynb).
+Baseline models for the capstone check-in requirement - "Develop an appropriate classification or 
+regression ML model to utilize as baseline for your analysis" - can be found
+- [decision_tree.ipynb](models/decision_tree.ipynb)
+- [logistic_regression.ipynb](models/logistic_regression.ipynb)
 
 ## Evaluation
 
