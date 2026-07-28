@@ -72,7 +72,7 @@ This is the primary goal of the capstone project.
 
 ### Predict arrival delay
 
-These are secondary goals of the capstone project that will be explored if time allows. Arrival-delay modeling has substantially larger and more complex data requirements.
+These are secondary goals of the capstone project that will be explored ~~if time allows~~. Arrival-delay modeling has substantially larger and more complex data requirements.
 
 1. **Model 2A:** For a flight arriving at JFK, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
 2. **Model 2B:** For a flight arriving at JFK, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
@@ -156,7 +156,7 @@ The primary research question is:
 
 - Can a departure delay of 15 minutes or more be identified before pushback?
 
-If time allows, the arrival-delay extension asks:
+~~If time allows,~~ The arrival-delay extension asks:
 
 - Can an arrival delay of 15 minutes or more be identified before pushback?
 - How much does the arrival prediction improve once the actual departure delay is known?
@@ -191,7 +191,7 @@ describes scheduled airport demand, and NOAA describes the weather observed befo
 ### Data Coverage
 
 The primary modeling population consists of domestic flights departing from JFK in 2019, 2023, and 2024. The secondary
-arrival population, if modeled, consists of domestic flights arriving at JFK during the same years. These years were
+arrival population, ~~if modeled,~~ consists of domestic flights arriving at JFK during the same years. These years were
 selected to represent periods before and after the COVID-19 pandemic when the airport was operating at or near normal
 capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after the major
 pandemic-related disruptions had passed.
@@ -224,7 +224,7 @@ Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘         
 Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The
 four model notebooks load the cleaned sources directly, perform their permitted time-safe joins, and create the
 corresponding model datasets. `model_1a.ipynb` produces the primary departure dataset. The three arrival notebooks are
-used only if the broader origin-side data requirements can be completed. Within each notebook, the baseline feature set
+used ~~only if the broader origin-side data requirements can be completed~~. Within each notebook, the baseline feature set
 is evaluated first and engineered features are then applied on top of that baseline to determine whether they improve
 performance. See [Appendix B: Feature Engineering](#feature-engineering) for the candidate features, their construction and rationale,
 and the controls used to evaluate them without leakage. Joined working dataframes and audit columns may exist inside a
@@ -447,7 +447,7 @@ cleaned inputs. Feature engineering and model experiments then begin with the re
 ## Modeling
 
 Baseline models for the capstone check-in requirement - "Develop an appropriate classification or 
-regression ML model to utilize as baseline for your analysis" - can be found
+regression ML model to utilize as baseline for your analysis" - can be found here:
 - [decision_tree_01.ipynb](models/decision_tree_01.ipynb)
 - [decision_tree_02.ipynb](models/decision_tree_02.ipynb)
 - [logistic_regression_01.ipynb](models/logistic_regression_01.ipynb)
