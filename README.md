@@ -6,13 +6,13 @@
 - [Overview](#overview)
   - [Predict departure delay](#predict-departure-delay)
   - [Predict arrival delay](#predict-arrival-delay)
-  - [Why arrival-delay prediction requires more data](#why-arrival-delay-prediction-requires-more-data)
-    - [Departure-delay scenario: Model 1A](#departure-delay-scenario-model-1a)
-    - [Arrival-delay scenario: Models 2A, 2B, and 2C](#arrival-delay-scenario-models-2a-2b-and-2c)
 - [Business Understanding](#business-understanding)
 - [Data Understanding](#data-understanding)
   - [Data Sources](#data-sources)
   - [Data Coverage](#data-coverage)
+  - [Why arrival-delay prediction requires more data](#why-arrival-delay-prediction-requires-more-data)
+    - [Departure-delay scenario: Model 1A](#departure-delay-scenario-model-1a)
+    - [Arrival-delay scenario: Models 2A, 2B, and 2C](#arrival-delay-scenario-models-2a-2b-and-2c)
   - [Data Flow](#data-flow)
   - [Matching Records by Time](#matching-records-by-time)
   - [Model Outcomes and Available Information](#model-outcomes-and-available-information)
@@ -24,6 +24,9 @@
   - [Processed and Cleaned Data](#processed-and-cleaned-data)
   - [Model Data](#model-data)
 - [Modeling](#modeling)
+  - [What the baseline models show](#what-the-baseline-models-show)
+  - [Planned improvements](#planned-improvements)
+  - [Why the arrival models may improve](#why-the-arrival-models-may-improve)
 - [Evaluation](#evaluation)
 - [Deployment](#deployment)
 - [References](#references)
@@ -107,11 +110,11 @@ Flight delays create costs and disruption for passengers, airlines, and airports
 can help airlines communicate with passengers, adjust staffing and gate plans, and prepare for possible missed connections. 
 Airports can also use this information to better understand when congestion or weather is likely to affect operations.
 
-The primary research question is:
+The departure-delay question asks:
 
 - Can a departure delay of 15 minutes or more be identified before pushback?
 
-~~If time allows,~~ The arrival-delay extension asks:
+The arrival-delay questions asks:
 
 - Can an arrival delay of 15 minutes or more be identified before pushback?
 - How much does the arrival prediction improve once the actual departure delay is known?
