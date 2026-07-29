@@ -76,71 +76,30 @@ The JFK analysis is organized into two model categories.
 
 ### Predict arrival delay
 
-Arrival-delay modeling has substantially larger and more complex data requirements.
-
 1. **Model 2A:** For a flight arriving at JFK, predict before pushback at the flight origin whether it arrives at least 15 minutes late.
 2. **Model 2B:** For a flight arriving at JFK, predict immediately after pushback at the flight origin whether it arrives at least 15 minutes late, using the actual departure delay.
 3. **Model 2C:** For a flight arriving at JFK, predict immediately after takeoff at the flight origin whether it arrives at least 15 minutes late, using the actual departure, taxi-out, and takeoff information.
 
 The arrival-delay category applies the same basic flight-level classification approach as the departure-delay category:
 combine schedule, route, planned airport demand, and weather information to predict whether an individual
-flight crosses the 15-minute delay threshold. Model 2A uses the pre-pushback framework, Model 2B updates it with actual
-departure information, and Model 2C updates it again with taxi-out and takeoff information.
+flight crosses the 15-minute delay threshold. 
 
-Arrival-delay modeling has substantially larger and more complex data requirements. Model 1A uses flights departing from
-JFK and can use JFK ASPM and NOAA data. Models 2A, 2B, and 2C use flights arriving at JFK from many different origin
+Models 2A, 2B, and 2C update the arrival-delay prediction as the flight progresses through its operational timeline. 
+Model 2A makes an initial prediction using information available before pushback. Model 2B revises that prediction after the flight departs, 
+using the actual departure time and delay. Model 2C updates it once more using observed taxi-out and takeoff information. 
+Together, the three models show how arrival-delay predictions can become more informed and potentially more accurate as 
+actual operating information replaces earlier assumptions.
+
+Arrival-delay modeling has substantially larger and more complex data requirements. Model 1A uses flights departing from JFK and can use JFK ASPM and NOAA data. Models 2A, 2B, and 2C use flights arriving at JFK from many different origin
 airports. A complete implementation therefore requires appropriate ASPM and NOAA coverage for those origins, NOAA
 station mapping, source-specific cleaning and validation, and joins for every inbound flight.
 
-Each model follows a clear prediction time. A field is included only if it would be known at that time; information
-recorded later is excluded even when it appears in the historical dataset. This prevents the model from learning from
-the future, often called data leakage. BTS provides the historical event values used for this analysis, but a working
+Each model follows a clear prediction time, and a field is included only if it would be known at that time. Information
+recorded later is excluded even when it appears in the historical datasets. This prevents the model from learning from
+the future, often called data leakage. BTS provides the historical event values used for this analysis. A working
 operational model would need equivalent gate-out and takeoff information from a suitable live source. Some 
 BTS columns represent events—such as gate departure and takeoff—that an airline or  airport operational system can observe 
 when they occur.
-
-### Why arrival-delay prediction requires more data
-
-Each flight is represented by one BTS row containing both its `Origin` and `Dest`. The tables below identify the
-airport-specific ASPM and NOAA context attached to that row in the baseline design.
-
-#### Departure-delay scenario: Model 1A
-
-| Airport role | BTS information used                                       | ASPM context                                 | NOAA context                                        | Data footprint                 |
-|---|------------------------------------------------------------|----------------------------------------------|-----------------------------------------------------|--------------------------------|
-| JFK origin | Schedule, airline, route, distance, and `DepDel15` target  | JFK planned traffic near scheduled departure | Latest JFK weather available by the prediction time | BTS, ASPM, NOAA for JFK Origin |
-| Flight destination | Destination and schedule information from the same BTS row | -                                            | -                                                   | -                              |
-
-#### Arrival-delay scenario: Models 2A, 2B, and 2C
-
-| Airport role | BTS information used | ASPM context                                   | NOAA context                                                   | Data footprint                                    |
-|---|---|------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------|
-| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | BTS, ASPM, NOAA for as many as 79 origin airports |
-| JFK destination | Destination identity, scheduled arrival information, and `ArrDel15` target from the same BTS row | -                                              | -                                                              | BTS for JFK Destination                           |
-
-Both scenarios use the same basic idea: combine flight-level BTS information with planned airport demand and
-weather to classify whether a flight crosses the 15-minute delay threshold. The difference is the scale of the external
-data work. Model 1A always departs from JFK, so one ASPM dataset and one NOAA station can serve every row. In the
-arrival scenario, the departure airport changes from flight to flight. Each included origin needs ASPM coverage, a NOAA
-station mapping, source cleaning and validation, and its own prediction-time-safe joins.
-
-Models 2B and 2C also introduce later BTS operating events, but those fields do not create the main data expansion. The
-larger burden comes from collecting and validating consistent ASPM and NOAA context across the inbound origin set.
-Destination ASPM and weather are not part of the baseline arrival design. Weather later observed at landing is
-prohibited because it was not available when the prediction was made.
-
-The work includes:
-
-- Checking data quality, missing values, unusual values, and the balance between delayed and on-time flights
-- Exploring which flight, airport, and weather conditions are most closely associated with delays
-- Creating useful features from dates, times, flights, airport, and weather conditions
-- Comparing logistic regression, random forest, and gradient-boosting models such as CatBoost
-- Measuring model performance on later flights that were not used for training
-- Explaining which factors have the strongest effect on each model's predictions
-
-The project focuses on individual flights. Aircraft rotations, previous-flight chains, and delay spread through an airline 
-network are out of scope. The approach is informed by the flight-level delay research of Snell, Zoutendijk, and Pineda. 
-The final analysis focuses on model performance and the factors associated with delays at JFK.
 
 ## Business Understanding
 
@@ -194,6 +153,49 @@ pandemic-related disruptions had passed.
 The exact division of the years and flights into training, development, and final test sets remains to be decided. 
 The split preserves time order so that the models are trained on earlier flights and evaluated
 on later flights they have not seen. Files use a consistent `JFK_YEAR.csv` naming pattern.
+
+### Why arrival-delay prediction requires more data
+
+Each flight is represented by one BTS row containing both its `Origin` and `Dest`. The tables below identify the
+airport-specific ASPM and NOAA context attached to that row in the baseline design.
+
+#### Departure-delay scenario: Model 1A
+
+| Airport role | BTS information used                                       | ASPM context                                 | NOAA context                                        | Data footprint                 |
+|---|------------------------------------------------------------|----------------------------------------------|-----------------------------------------------------|--------------------------------|
+| JFK origin | Schedule, airline, route, distance, and `DepDel15` target  | JFK planned traffic near scheduled departure | Latest JFK weather available by the prediction time | BTS, ASPM, NOAA for JFK Origin |
+| Flight destination | Destination and schedule information from the same BTS row | -                                            | -                                                   | -                              |
+
+#### Arrival-delay scenario: Models 2A, 2B, and 2C
+
+| Airport role | BTS information used | ASPM context                                   | NOAA context                                                   | Data footprint                                    |
+|---|---|------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------|
+| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | BTS, ASPM, NOAA for as many as 79 origin airports |
+| JFK destination | Destination identity, scheduled arrival information, and `ArrDel15` target from the same BTS row | -                                              | -                                                              | BTS for JFK Destination                           |
+
+Both scenarios use the same basic idea: combine flight-level BTS information with planned airport demand and
+weather to classify whether a flight crosses the 15-minute delay threshold. The difference is the scale of the external
+data work. Model 1A always departs from JFK, so one ASPM dataset and one NOAA station can serve every row. In the
+arrival scenario, the departure airport changes from flight to flight. Each included origin needs ASPM coverage, a NOAA
+station mapping, source cleaning and validation, and its own prediction-time-safe joins.
+
+Models 2B and 2C also introduce later BTS operating events, but those fields do not create the main data expansion. The
+larger burden comes from collecting and validating consistent ASPM and NOAA context across the inbound origin set.
+Destination ASPM and weather are not part of the baseline arrival design. Weather later observed at landing is
+prohibited because it was not available when the prediction was made.
+
+The work includes:
+
+- Checking data quality, missing values, unusual values, and the balance between delayed and on-time flights
+- Exploring which flight, airport, and weather conditions are most closely associated with delays
+- Creating useful features from dates, times, flights, airport, and weather conditions
+- Comparing logistic regression, random forest, and gradient-boosting models such as CatBoost
+- Measuring model performance on later flights that were not used for training
+- Explaining which factors have the strongest effect on each model's predictions
+
+The project focuses on individual flights. Aircraft rotations, previous-flight chains, and delay spread through an airline 
+network are out of scope. The approach is informed by the flight-level delay research of Snell, Zoutendijk, and Pineda. 
+The final analysis focuses on model performance and the factors associated with delays at JFK.
 
 ### Data Flow
 
