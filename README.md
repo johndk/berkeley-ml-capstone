@@ -97,7 +97,7 @@ Arrival-delay modeling has substantially larger and more complex data requiremen
 airports. A complete implementation therefore requires appropriate ASPM and NOAA coverage for those origins, NOAA
 station mapping, source-specific cleaning and validation, and joins for every inbound flight.
 
-Each model follows a clear prediction time, and a field is included only if it would be known at that time. Information
+Each model follows a clear prediction timeline, and a field is included only if it would be known at that time. Information
 recorded later is excluded even when it appears in the historical datasets. This prevents the model from learning from
 the future, often called data leakage. BTS provides the historical event values used for this analysis. A working
 operational model would need equivalent gate-out and takeoff information from a suitable live source. Some 
@@ -114,7 +114,7 @@ The departure-delay question asks:
 
 - Can a departure delay of 15 minutes or more be identified before pushback?
 
-The arrival-delay questions asks:
+The arrival-delay questions ask:
 
 - Can an arrival delay of 15 minutes or more be identified before pushback?
 - How much does the arrival prediction improve once the actual departure delay is known?
@@ -153,14 +153,14 @@ selected to represent periods before and after the COVID-19 pandemic when the ai
 capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after the major
 pandemic-related disruptions had passed.
 
-The exact division of the years and flights into training, development, and final test sets remains to be decided. 
+The 2019 flight data will be used for training, the 2023 data for model development and validation, and the 2024 data for final testing. 
 The split preserves time order so that the models are trained on earlier flights and evaluated
-on later flights they have not seen. Files use a consistent `JFK_YEAR.csv` naming pattern.
+on later flights they have not seen.
 
 ### Why arrival-delay prediction requires more data
 
 Each flight is represented by one BTS row containing both its `Origin` and `Dest`. The tables below identify the
-airport-specific ASPM and NOAA context attached to that row in the baseline design.
+airport-specific ASPM and NOAA context attached to that row in the two model categories.
 
 #### Departure-delay scenario: Model 1A
 
@@ -171,10 +171,10 @@ airport-specific ASPM and NOAA context attached to that row in the baseline desi
 
 #### Arrival-delay scenario: Models 2A, 2B, and 2C
 
-| Airport role | BTS information used | ASPM context                                   | NOAA context                                                   | Data footprint                                    |
-|---|---|------------------------------------------------|----------------------------------------------------------------|---------------------------------------------------|
-| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | BTS, ASPM, NOAA for as many as 79 origin airports |
-| JFK destination | Destination identity, scheduled arrival information, and `ArrDel15` target from the same BTS row | -                                              | -                                                              | BTS for JFK Destination                           |
+| Airport role | BTS information used | ASPM context                                   | NOAA context                                                   | Data footprint                         |
+|---|---|------------------------------------------------|----------------------------------------------------------------|----------------------------------------|
+| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | BTS, ASPM, NOAA for 55 origin airports |
+| JFK destination | Destination identity, scheduled arrival information, and `ArrDel15` target from the same BTS row | -                                              | -                                                              | BTS for JFK Destination                |
 
 Both scenarios use the same basic idea: combine flight-level BTS information with planned airport demand and
 weather to classify whether a flight crosses the 15-minute delay threshold. The difference is the scale of the external
@@ -184,7 +184,7 @@ station mapping, source cleaning and validation, and its own prediction-time-saf
 
 Models 2B and 2C also introduce later BTS operating events, but those fields do not create the main data expansion. The
 larger burden comes from collecting and validating consistent ASPM and NOAA context across the inbound origin set.
-Destination ASPM and weather are not part of the baseline arrival design. Weather later observed at landing is
+Destination ASPM and weather are not part of the baseline arrival design. With the arrival scenario, weather observed at landing is
 prohibited because it was not available when the prediction was made.
 
 The work includes:
@@ -212,12 +212,17 @@ Raw NOAA ──→ Process NOAA ──→ Clean NOAA ─────┘         
                      ┌───────────────────┬────────────────────┼───────────────────┐
                      ▼                   ▼                    ▼                   ▼
           notebooks/model_1a.ipynb  model_2a.ipynb      model_2b.ipynb      model_2c.ipynb
-          Join and engineer         Join and engineer   Join and engineer   Join and engineer
           JFK departures            JFK arrivals        JFK arrivals        JFK arrivals
+          join BTS ASPM NOAA ──→
                      │                   │                    │                   │
                      ▼                   ▼                    ▼                   ▼
              data/models/         data/models/        data/models/        data/models/
              JFK_YEAR_m1a.csv     JFK_YEAR_m2a.csv    JFK_YEAR_m2b.csv    JFK_YEAR_m2c.csv
+             baseline model  ──→
+                     │                   │                    │                   │
+                     ▼                   ▼                    ▼                   ▼
+           feature engineered 
+                  models     ──→        
 ```
 
 Processing first makes each source easier to use. Cleaning then checks the quality and consistency of the data. The
@@ -375,14 +380,14 @@ destination, and combines the matching records into one annual `JFK.csv` file. F
 the BTS processing notebook.
 
 ASPM data is collected with `download_aspm_hourly_v3.py`, which requests one FAA ASPM hourly report for JFK for each
-calendar day. The year-specific shell scripts supply the date range and airport code. Each run saves the original daily
+calendar day. Supporting shell scripts supply the date range and airport code. Each run saves the original daily
 HTML responses under `raw_html/` and combines the extracted hourly records into one annual airport CSV, such as
 `aspm_2019_JFK.csv`. Keeping the HTML responses preserves the original reports while the annual CSV becomes the input to
 the ASPM processing notebook.
 
-NOAA Local Climatological Data is downloaded as one annual CSV for the weather station selected to represent JFK.
-Station `74486094789` represents JFK. The files are grouped by year under `data/noaa/raw/` and provide the raw weather
-observations used to produce the JFK inputs for the NOAA processing notebook.
+NOAA Local Climatological Data is downloaded as one annual CSV for each airport weather station, for example
+station `74486094789` represents JFK. The files are grouped by year under `data/noaa/raw/` and provide the raw weather
+observations used to produce the airport inputs for the NOAA processing notebook.
 
 ### Processed and Cleaned Data
 
