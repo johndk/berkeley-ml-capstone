@@ -1045,32 +1045,34 @@ such as `Reporting_Airline`, `Origin`, `Dest`, `CRSElapsedTime`, `Distance`, the
 
 ### Feature selection and leakage rules
 
-The initial baseline should begin with the core table and the retained raw predictors, then remove redundant
-representations based only on the training data and model family. For example, a linear model may benefit from cyclical
-time features and compact weather summaries, while a tree model may not need both every raw input and every derived
-summary. Any one-hot, frequency, or target encoding, imputation, scaling, threshold selection, feature selection, or
-class-balancing step must be fitted on training data only.
+Use the following rules when selecting features and preparing data:
 
-Threshold features such as `LOW_VISIBILITY`, `HIGH_WIND`, `ASPM_HIGH_TRAFFIC`, and source-staleness flags are deferred
-until their cutoffs are justified by an operational definition or selected from training data. Broad interaction sets
-and historical delay-rate features are also deferred. If historical rates are added later, the current row must be
-shifted out, only earlier completed flights may contribute, small groups must be smoothed, and development/test outcomes
-must never be used.
-
-For Model 2B, the first comparison should use a minimal actual-departure update, such as signed `DepDelay` alone, followed
-by a deliberately chosen fuller representation. `DepTime`, `DepDelay`, `DepDelayMinutes`, `DepDel15`, and
-`DepartureDelayGroups` encode overlapping information and should not all be included automatically. `TaxiOut` and
-`WheelsOff` remain excluded from Models 1A, 2A, and 2B.
-
-The current Model 1A assembly logic contains flights **departing** JFK. Before building Models 2A, 2B, and 2C as defined
-in this README, their notebooks must create the inbound population with `Dest` equal to JFK and attach
-schedule, ASPM, and time-safe NOAA information for the flight origin at the relevant prediction time. The
-outbound rows or destination weather observed at landing must not be reused as a substitute. Pineda uses destination
-weather observed around landing, but that information is unavailable before pushback; it is eligible here only if a
-forecast or observation was demonstrably available by the model's prediction cutoff.
-
-Source timestamps (`FlightDate`, `DATE`, ASPM lookup/report dates, and `NOAA_DATE`) remain audit columns rather than
-predictors. The nine documented missing next-hour ASPM matches at annual file boundaries must remain missing or be
-recovered from the following year's planned schedule file; they must not be filled with zero or copied from the current
-hour. `Tail_Number` remains audit-only, and no aircraft rotation, previous-flight chain, turnaround, tail-sequence, or
-network-propagation feature is part of this feature set.
+- Start with the fixed baseline predictors. Add engineered features only when they have a clear purpose and improve the
+  model. Avoid keeping several features that express the same information.
+- Choose features separately for each model type. Logistic regression may benefit from cyclical time encodings and
+  summarized weather measures. Tree models may work well with the original values and may not need every derived
+  version.
+- Learn every data-preparation decision from the training data only. This rule applies to missing-value imputation,
+  scaling, categorical encoding, feature selection, class balancing, and the selection of numeric thresholds. Do not use
+  development or test data to make these decisions.
+- Do not create flags such as `LOW_VISIBILITY`, `HIGH_WIND`, `ASPM_HIGH_TRAFFIC`, or source-staleness flags until their
+  cutoffs have a clear operational meaning or have been selected using training data.
+- Defer large sets of interaction features and historical delay-rate features until after the initial models are
+  established. If historical rates are added, use only earlier completed flights. Exclude the current flight, never use
+  development or test outcomes, and smooth rates for groups with few observations.
+- For Model 2B, begin with a small update such as signed `DepDelay`. Then test whether a larger departure-information set
+  improves the result. `DepTime`, `DepDelay`, `DepDelayMinutes`, `DepDel15`, and `DepartureDelayGroups` describe much of
+  the same event, so they should not all be included automatically. `TaxiOut` and `WheelsOff` are available only to
+  Model 2C and must remain excluded from Models 1A, 2A, and 2B.
+- Model 1A uses flights with `Origin` equal to JFK. Models 2A, 2B, and 2C must instead use inbound flights with `Dest`
+  equal to JFK. Their ASPM and NOAA data must describe each flight's origin and must have been available by that model's
+  prediction time.
+- Do not substitute JFK outbound data for the origin data required by the arrival models. Do not use destination weather
+  observed at landing in a pre-pushback model. Destination weather is allowed only if it came from a forecast or
+  observation that was available by the prediction cutoff.
+- Keep source timestamps such as `FlightDate`, `DATE`, ASPM lookup and report dates, and `NOAA_DATE` for auditing the
+  joins. Do not use them directly as model predictors.
+- Keep the nine missing next-hour ASPM matches at annual file boundaries as missing unless they can be recovered from the
+  following year's planned schedule file. Do not replace them with zero or copy values from the current hour.
+- Keep `Tail_Number` for auditing only. Do not add aircraft rotation, previous-flight chain, turnaround, tail-sequence,
+  or network-propagation features.
