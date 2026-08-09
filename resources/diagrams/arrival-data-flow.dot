@@ -1,0 +1,133 @@
+strict digraph arrival_data_flow {
+    graph [
+        rankdir=TB,
+        bgcolor="white",
+        pad=0.30,
+        nodesep=0.35,
+        ranksep=0.55,
+        fontname="Helvetica Neue",
+        fontcolor="#172033",
+        label="Arrival-delay data flow — Models 2A, 2B, and 2C",
+        labelloc=t,
+        fontsize=20
+    ];
+
+    node [
+        shape=box,
+        style="rounded,filled",
+        fillcolor="#F6F8FB",
+        color="#B8C2D1",
+        penwidth=1.2,
+        fontname="Helvetica Neue",
+        fontcolor="#172033",
+        fontsize=11,
+        margin="0.16,0.10"
+    ];
+
+    edge [
+        color="#64748B",
+        fontname="Helvetica Neue",
+        fontcolor="#64748B",
+        fontsize=9,
+        penwidth=1.3,
+        arrowsize=0.75
+    ];
+
+    subgraph cluster_sources {
+        label="1. Prepare airport-year source data";
+        labelloc=t;
+        style="rounded,filled";
+        fillcolor="#FAFBFC";
+        color="#D7DEE8";
+        penwidth=1.2;
+        fontname="Helvetica Neue";
+        fontcolor="#475569";
+        fontsize=12;
+        margin=18;
+
+        { rank=same; bts; aspm; noaa; }
+
+        bts [label="BTS flights\nprocess_bts → clean_bts"];
+        aspm [label="ASPM planned demand\nprocess_aspm → clean_aspm"];
+        noaa [label="NOAA weather\nprocess_noaa → clean_noaa"];
+    }
+
+    subgraph cluster_destination_inputs {
+        label="";
+        style="rounded,filled";
+        fillcolor="#FAFBFC";
+        color="#D7DEE8";
+        penwidth=1.2;
+        fontname="Helvetica Neue";
+        fontcolor="#475569";
+        fontsize=12;
+        margin=18;
+
+        { rank=same; inbound; demand; weather; }
+
+        inbound [
+            label="2a. Build JFK-bound flights\ncat_bts.py  ·  Dest = JFK",
+            fillcolor="#EAF2FB",
+            color="#5B82AE"
+        ];
+        demand [label="2b. Consolidate origin demand\ncat_aspm.py"];
+        weather [label="2c. Consolidate origin weather\ncat_noaa.py"];
+    }
+
+    merge [
+        label="3. Assemble arrival rows\nmerge_arrivals.ipynb  ·  joins keyed by Origin",
+        fillcolor="#EAF2FB",
+        color="#5B82AE"
+    ];
+
+    merged [
+        label="Merged arrivals\nJFK_YEAR_arrivals.csv",
+        shape=cylinder,
+        style=filled,
+        fillcolor="#FFF7E3",
+        color="#C49120"
+    ];
+
+    feature [
+        label="4. Engineer the arrival feature union\nfeature_arrivals.ipynb",
+        fillcolor="#F1ECFA",
+        color="#8064A8"
+    ];
+
+    ready [
+        label="Arrival feature dataset\nJFK_YEAR_arrivals.csv",
+        shape=cylinder,
+        style=filled,
+        fillcolor="#FFF7E3",
+        color="#C49120"
+    ];
+
+    subgraph cluster_horizons {
+        label="";
+        style="rounded,filled";
+        fillcolor="#FAFBFC";
+        color="#D7DEE8";
+        penwidth=1.2;
+        fontname="Helvetica Neue";
+        fontcolor="#475569";
+        fontsize=12;
+        margin=18;
+
+        { rank=same; model_2a; model_2b; model_2c; }
+
+        model_2a [label="5a. Model 2A\nbefore pushback", fillcolor="#EAF7EF", color="#4B8F63"];
+        model_2b [label="5b. Model 2B\nafter pushback", fillcolor="#EAF7EF", color="#4B8F63"];
+        model_2c [label="5c. Model 2C\nafter takeoff", fillcolor="#EAF7EF", color="#4B8F63"];
+    }
+
+    bts -> inbound;
+    aspm -> demand;
+    noaa -> weather;
+    inbound -> merge;
+    demand -> merge;
+    weather -> merge;
+    merge -> merged -> feature -> ready;
+    ready -> model_2a;
+    ready -> model_2b;
+    ready -> model_2c;
+}
