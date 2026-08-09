@@ -11,8 +11,8 @@ airports=(JFK)
 for year in "${years[@]}"; do
     for airport in "${airports[@]}"; do
         papermill \
-            notebooks/model_1a.ipynb \
-            "/tmp/model_1a_${year}_${airport}.ipynb" \
+            notebooks/merge_arrivals.ipynb \
+            "/tmp/merge_arrivals_${year}_${airport}.ipynb" \
             -p YEAR "$year" \
             -p AIRPORT "$airport" \
             --cwd notebooks

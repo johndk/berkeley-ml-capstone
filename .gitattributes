@@ -1,0 +1,5 @@
+data/bts/cleaned/_csv_files.zip filter=lfs diff=lfs merge=lfs -text
+data/bts/raw/2019/2019_csv_files.zip filter=lfs diff=lfs merge=lfs -text
+data/bts/raw/2024/2024_csv_files.zip filter=lfs diff=lfs merge=lfs -text
+data/bts/processed/_csv_files.zip filter=lfs diff=lfs merge=lfs -text
+data/bts/raw/2023/2023_csv_files.zip filter=lfs diff=lfs merge=lfs -text

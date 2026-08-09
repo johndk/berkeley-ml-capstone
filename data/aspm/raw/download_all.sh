@@ -23,24 +23,27 @@ if [[ ! -x "$DOWNLOAD_SCRIPT" ]]; then
     exit 1
 fi
 
-# JFK, ATL, and ORD are intentionally omitted because their data is available.
 AIRPORTS=(
     ANC AUS BNA BOS BUF BUR BWI CLE CLT
-    CMH CVG DCA DEN DFW DTW FLL HNL HOU IAD
+    CVG DCA DEN DFW DTW FLL HNL HOU IAD
     IAH IND JAX LAS LAX LGB MCI MCO MIA MKE
     MSP MSY OAK ONT PBI PDX PHL PHX PIT PSP
     RDU RSW SAN SAT SDF SEA SFO SJC SJU SLC
-    SMF SNA TPA
+    SMF SNA TPA ORD ATL JFK
 )
 
+#AIRPORTS=(OAK RDU SAT SDF PBI SFO)
+
 TOTAL="${#AIRPORTS[@]}"
+DOWNLOADED=0
 
 for INDEX in "${!AIRPORTS[@]}"; do
     AIRPORT="${AIRPORTS[$INDEX]}"
     echo
     echo "[$((INDEX + 1))/$TOTAL] Downloading $AIRPORT for $YEAR"
     "$DOWNLOAD_SCRIPT" "$AIRPORT" "$YEAR"
+    DOWNLOADED=$((DOWNLOADED + 1))
 done
 
 echo
-echo "Finished downloading $TOTAL airports for $YEAR."
+echo "Finished downloading $DOWNLOADED airports for $YEAR."

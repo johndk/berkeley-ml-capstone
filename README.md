@@ -71,7 +71,7 @@ The project combines three main data sources:
 - Aviation System Performance Metrics (ASPM) [airport traffic and congestion data](https://www.aspm.faa.gov/apm/sys/main.asp)
 - National Oceanic and Atmospheric Administration (NOAA) [weather observations](https://www.ncei.noaa.gov/data/local-climatological-data/access/)
 
-The JFK analysis is organized into two model categories.
+The analysis is organized into two model categories.
 
 ### Predict departure delay
 
