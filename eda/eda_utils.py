@@ -10,7 +10,7 @@ import pandas as pd
 
 AIRPORTS = ("JFK",)
 YEARS = (2019, 2023, 2024)
-MODELS = ("m1a", "m2a", "m2b", "m2c")
+FEATURE_DATASETS = ("departures", "arrivals")
 TARGET_COLUMNS = ("DepDel15", "ArrDel15")
 DATE_COLUMNS = (
     "FlightDate",
@@ -43,57 +43,63 @@ def find_project_root(start: Path | None = None) -> Path:
     """Find the capstone root whether a notebook starts in root or eda/."""
     current = (start or Path.cwd()).resolve()
     for candidate in (current, *current.parents):
-        if (candidate / "data" / "models").is_dir():
+        if (candidate / "data" / "features").is_dir():
             return candidate
     raise FileNotFoundError(
-        "Could not locate data/models. Run the notebook from the capstone "
+        "Could not locate data/features. Run the notebook from the capstone "
         "directory or its eda subdirectory."
     )
 
 
-def model_file(
+def feature_file(
     airport: str,
     year: int,
-    model: str = "m1a",
+    dataset: str = "departures",
     project_root: Path | None = None,
 ) -> Path:
-    """Return the CSV path for an airport, year, and model dataset."""
+    """Return the shared feature CSV path for an airport, year, and scenario."""
     airport = airport.upper()
-    model = model.lower()
+    dataset = dataset.lower()
     if airport not in AIRPORTS:
         raise ValueError(f"AIRPORT must be one of {AIRPORTS}; received {airport!r}.")
     if year not in YEARS:
         raise ValueError(f"YEAR must be one of {YEARS}; received {year!r}.")
-    if model not in MODELS:
-        raise ValueError(f"MODEL must be one of {MODELS}; received {model!r}.")
+    if dataset not in FEATURE_DATASETS:
+        raise ValueError(
+            f"DATASET must be one of {FEATURE_DATASETS}; received {dataset!r}."
+        )
 
     root = project_root or find_project_root()
-    path = root / "data" / "models" / f"{airport}_{year}_{model}.csv"
+    path = root / "data" / "features" / f"{airport}_{year}_{dataset}.csv"
     if not path.exists():
-        raise FileNotFoundError(f"Model dataset not found: {path}")
+        raise FileNotFoundError(f"Feature dataset not found: {path}")
     return path
 
 
-def available_model_files(
-    model: str | None = None,
+def available_feature_files(
+    dataset: str | None = None,
     project_root: Path | None = None,
 ) -> list[Path]:
-    """List model CSV files in a stable order, optionally for one model."""
+    """List feature CSV files in a stable order, optionally for one scenario."""
     root = project_root or find_project_root()
-    pattern = f"JFK_*_{model.lower()}.csv" if model else "JFK_*_m*.csv"
-    return sorted((root / "data" / "models").glob(pattern))
+    if dataset is not None and dataset.lower() not in FEATURE_DATASETS:
+        raise ValueError(
+            f"DATASET must be one of {FEATURE_DATASETS}; received {dataset!r}."
+        )
+    pattern = f"JFK_*_{dataset.lower()}.csv" if dataset else "JFK_*.csv"
+    return sorted((root / "data" / "features").glob(pattern))
 
 
-def load_model(
+def load_features(
     airport: str,
     year: int,
-    model: str = "m1a",
+    dataset: str = "departures",
     *,
     usecols: list[str] | None = None,
     project_root: Path | None = None,
 ) -> pd.DataFrame:
-    """Load one model dataset and parse any requested timestamp columns."""
-    path = model_file(airport, year, model, project_root)
+    """Load one shared feature dataset and parse its timestamp columns."""
+    path = feature_file(airport, year, dataset, project_root)
     parse_dates = [
         column
         for column in DATE_COLUMNS
@@ -123,7 +129,9 @@ def add_eda_columns(frame: pd.DataFrame) -> pd.DataFrame:
         arrivals = f"ASPM_{period}_SCHEDULED_ARRIVALS"
         total = f"ASPM_{period}_TOTAL_SCHEDULED_TRAFFIC"
 
-        if {departures, arrivals}.issubset(data.columns):
+        if total in data:
+            period_total_columns.append(total)
+        elif {departures, arrivals}.issubset(data.columns):
             data[total] = data[departures] + data[arrivals]
             period_total_columns.append(total)
 
@@ -134,22 +142,35 @@ def add_eda_columns(frame: pd.DataFrame) -> pd.DataFrame:
         f"ASPM_{period}_SCHEDULED_ARRIVALS" for period in ASPM_PERIODS
     ]
     if set(three_hour_departures + three_hour_arrivals).issubset(data.columns):
-        data["ASPM_THREE_HOUR_SCHEDULED_DEPARTURES"] = data[
-            three_hour_departures
-        ].sum(axis=1)
-        data["ASPM_THREE_HOUR_SCHEDULED_ARRIVALS"] = data[
-            three_hour_arrivals
-        ].sum(axis=1)
-        data["ASPM_THREE_HOUR_TOTAL_SCHEDULED_TRAFFIC"] = data[
-            period_total_columns
-        ].sum(axis=1)
+        if "ASPM_THREE_HOUR_SCHEDULED_DEPARTURES" not in data:
+            data["ASPM_THREE_HOUR_SCHEDULED_DEPARTURES"] = data[
+                three_hour_departures
+            ].sum(axis=1, min_count=len(three_hour_departures))
+        if "ASPM_THREE_HOUR_SCHEDULED_ARRIVALS" not in data:
+            data["ASPM_THREE_HOUR_SCHEDULED_ARRIVALS"] = data[
+                three_hour_arrivals
+            ].sum(axis=1, min_count=len(three_hour_arrivals))
+        if "ASPM_THREE_HOUR_TOTAL_SCHEDULED_TRAFFIC" not in data:
+            data["ASPM_THREE_HOUR_TOTAL_SCHEDULED_TRAFFIC"] = data[
+                period_total_columns
+            ].sum(axis=1, min_count=len(period_total_columns))
 
     present_weather_flags = [
         column for column in WEATHER_FLAGS if column in data.columns
     ]
-    if present_weather_flags:
-        data["WeatherConditionCount"] = data[present_weather_flags].sum(axis=1)
-        data["AdverseWeather"] = (data["WeatherConditionCount"] > 0).astype("int8")
+    if "WEATHER_CONDITION_COUNT" in data:
+        data["WeatherConditionCount"] = data["WEATHER_CONDITION_COUNT"]
+    elif present_weather_flags:
+        data["WeatherConditionCount"] = data[present_weather_flags].sum(
+            axis=1, min_count=len(present_weather_flags)
+        )
+
+    if "ADVERSE_WEATHER" in data:
+        data["AdverseWeather"] = data["ADVERSE_WEATHER"]
+    elif "WeatherConditionCount" in data:
+        data["AdverseWeather"] = (
+            data["WeatherConditionCount"] > 0
+        ).astype("int8")
 
     if "HourlyVisibility" in data:
         data["VisibilityCategory"] = pd.cut(

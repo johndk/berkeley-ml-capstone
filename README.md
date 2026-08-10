@@ -189,7 +189,7 @@ airport-specific ASPM and NOAA context attached to that row in the two model cat
 
 | Airport role | BTS information used | ASPM context                                   | NOAA context                                                   | Data footprint                         |
 |---|---|------------------------------------------------|----------------------------------------------------------------|----------------------------------------|
-| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | BTS, ASPM, NOAA for 55 origin airports |
+| Each flight origin | Schedule, airline, route, and Model 2B/2C operating fields | Planned traffic near departure for that origin | Latest origin weather available by the model's prediction time | BTS, ASPM, NOAA for 54 origin airports |
 | JFK destination | Destination identity, scheduled arrival information, and `ArrDel15` target from the same BTS row | -                                              | -                                                              | BTS for JFK Destination                |
 
 Both scenarios use the same basic idea: combine flight-level BTS information with planned airport demand and
@@ -199,7 +199,7 @@ arrival scenario, the departure airport changes from flight to flight. Each incl
 station mapping, source cleaning and validation, and its own prediction-time-safe joins.
 
 Models 2B and 2C also introduce later BTS operating events, but those fields do not create the main data expansion. The
-larger burden comes from collecting and validating consistent ASPM and NOAA context across the inbound origin set.
+larger burden comes from collecting and validating consistent ASPM and NOAA context across the inbound flights.
 Destination ASPM and weather are not part of the baseline arrival design. With the arrival scenario, weather observed at landing is
 prohibited because it was not available when the prediction was made.
 
@@ -218,45 +218,46 @@ The final analysis focuses on model performance and the factors associated with 
 
 ### Data Flow
 
-The two scenarios share the same source-level processing and cleaning stages, but they assemble different flight populations
-and airport context. The departure path needs only JFK context. The arrival path first builds a destination-specific
-inbound-flight table and matching origin-airport context datasets before performing its joins. In the diagrams below,
-`YEAR` represents each of 2019, 2023, and 2024.
+The two scenarios use the same basic processing and cleaning steps, but they prepare different groups of flights and
+airport conditions. The departure path needs data for JFK only. The arrival path first gathers flights bound for JFK
+and then gathers conditions at each flight's origin. In the diagrams below, `YEAR` represents 2019, 2023, or 2024.
 
 #### Departure-delay data flow: Model 1A
 
 ![Departure-delay data flow for Model 1A](resources/diagrams/departure-data-flow.svg)
 
-For each year, the three cleaning streams produce flight, planned-demand, and weather data for JFK. The departure merge
-retains BTS rows with `Origin == JFK`, preserving one row per eligible flight. It attaches JFK ASPM scheduled arrivals
-and departures for the previous, current, and next clock hours around scheduled departure, plus the latest JFK NOAA
-observation at or before scheduled departure and no more than 90 minutes old.
+For each year, the cleaned BTS, ASPM, and NOAA files provide flight, planned airport traffic, and weather data for JFK.
+The departure merge keeps flights whose `Origin` is `JFK`, with one row for each eligible flight. It adds JFK's scheduled
+arrivals and departures for the hour before, the hour containing, and the hour after the scheduled departure. It also
+adds the latest JFK weather report available by scheduled departure, provided that the report is no more than 90 minutes
+old.
 
-`feature_departures.ipynb` then adds only deterministic features available before pushback. The saved feature table
-retains the `DepDel15` target and audit fields, but Model 1A must select predictors through its explicit allowlist in
-`notebooks/feature_engineering.py`. Imputation, encoding, scaling, feature selection, resampling, and threshold selection
-remain model-pipeline operations fitted on training data only.
+`feature_departures.ipynb` then adds fixed, calculated features that would be available before pushback. The saved table
+also keeps the `DepDel15` target and columns needed for checking the data. When Model 1A is trained, the approved input
+list in `notebooks/feature_engineering.py` selects only the permitted predictors. Steps that learn from data—including
+filling missing values, encoding categories, scaling, selecting features, balancing classes, and choosing a decision
+threshold—are fitted on training data only.
 
 #### Arrival-delay data flow: Models 2A, 2B, and 2C
 
 ![Arrival-delay data flow for Models 2A, 2B, and 2C](resources/diagrams/arrival-data-flow.svg)
 
-The arrival path begins with cleaned airport-year files for the working cohort. `data/bts/cat_bts.py` combines those
-files, keeps flights with `Dest == JFK`, normalizes flight numbers, removes overlapping duplicate rows, and produces the
-inbound flight table. The ASPM and NOAA concatenation scripts derive the required origin set from that table and combine
-the corresponding cleaned origin files. This is the step that expands the arrival scenario from one airport's context
-to the project's inbound-origin cohort.
+The arrival path covers flights to JFK from the working group of 54 origin airports. `data/bts/cat_bts.py` combines the
+cleaned airport files, keeps flights whose `Dest` is `JFK`, standardizes flight numbers, and removes duplicate copies of
+the same flight. The resulting flight table identifies which origins are needed. The ASPM and NOAA scripts then combine
+the cleaned traffic and weather files for those origins. This is the main reason the arrival preparation is larger than
+the departure preparation.
 
-`merge_arrivals.ipynb` preserves the JFK-bound flight rows but keys both context joins by each row's `Origin`. It attaches
-that origin's previous-, current-, and next-hour planned ASPM traffic and the latest origin NOAA report at or before
-scheduled departure, subject to the same 90-minute tolerance. The source airport keys, timestamps, and timing offsets
-remain in the merged data for audit checks. Baseline destination ASPM and weather are not joined.
+For each JFK-bound flight, `merge_arrivals.ipynb` looks up planned traffic and weather at that flight's `Origin`. It adds
+the origin's planned traffic for the previous, current, and next hours, together with the latest origin weather report
+available by scheduled departure and no more than 90 minutes old. The merged file keeps the airport codes, source times,
+and time differences needed to check each match. The current design does not add JFK destination traffic or weather
+data.
 
-`feature_arrivals.ipynb` writes one feature table containing the union of deterministic features needed across all three
-arrival horizons. The table is not itself a single predictor manifest: Model 2A selects only pre-pushback information;
-Model 2B adds actual gate-departure time and delay information; and Model 2C additionally allows taxi-out and wheels-off
-information. The separate allowlists in `notebooks/feature_engineering.py` enforce those cutoffs and prevent later events
-from leaking into an earlier prediction.
+`feature_arrivals.ipynb` creates one feature table that supports all three arrival prediction times. Model 2A uses only
+information available before pushback. Model 2B adds the actual gate-departure time and departure delay. Model 2C also
+adds taxi-out and takeoff information. Separate approved input lists in `notebooks/feature_engineering.py` make sure that
+information from a later stage of the flight cannot be used for an earlier prediction.
 
 See [Appendix B: Feature Engineering](#feature-engineering) for the candidate features, their construction, and their rationale.
 
@@ -265,8 +266,7 @@ See [Appendix B: Feature Engineering](#feature-engineering) for the candidate fe
 The scheduled departure date and time, stored in `DATE`, provides the main time for each BTS flight. Each flight is matched
 with ASPM schedule records for the previous, current, and next clock hours. The next-hour values are planned counts known
 ahead of time, not future operating results. Each flight is also matched with the most recent NOAA observation available
-before its scheduled departure. The merge notebook keeps source timestamps and timing differences in its working
-dataframe so the matches can be checked.
+before its scheduled departure. The merge notebook keeps source timestamps and timing differences so the matches can be checked.
 
 This time-based matching prevents a model from using airport conditions or weather observations that occurred after the prediction was made. It also allows the age of the matched information to be checked before modeling.
 

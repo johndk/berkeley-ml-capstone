@@ -1,9 +1,9 @@
-"""Shared configuration for the model-dataset EDA notebooks."""
+"""Shared configuration for the feature-dataset EDA notebooks."""
 
-# Change these values to run the detailed EDA for another model dataset.
+# Change these values to run the detailed EDA for another shared feature dataset.
 AIRPORT = "JFK"
 YEAR = 2019
-MODEL = "m1a"
+DATASET = "departures"
 
 # Plotting and display settings shared by the notebooks.
 FIGURE_DPI = 110
