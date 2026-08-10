@@ -1268,6 +1268,9 @@ rather than because the fitted model changed.
 | 1A | Logistic regression | 03 | [logistic_regression_1a_03.ipynb](models/logistic_regression_1a_03.ipynb) | `DepDel15` | 54 broad source and calculated fields; 1,826 columns after preparation; 1,824 nonconstant columns | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Remove constant columns, then fit L1 logistic regression; `C=0.01`; no class weighting; uses all 1,824 remaining columns because the top-50, top-100, and top-200 choices did not improve validation |
 | 1A | Decision tree | 01 | [decision_tree_1a_01.ipynb](models/decision_tree_1a_01.ipynb) | `DepDel15` | 20 pre-pushback source fields; 99 columns after training-based missing-value handling and category encoding | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Entropy tree with class weighting; depth 15; minimum leaf 500; minimum split 250; 157 fitted leaves |
 | 1A | Decision tree | 02 | [decision_tree_1a_02.ipynb](models/decision_tree_1a_02.ipynb) | `DepDel15` | 34 compact source and calculated fields for tree models; 265 columns after preparation | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Gini tree without class weighting; depth 15; minimum leaf 500; minimum split 250; 161 fitted leaves |
+| 2A | Logistic regression | 01 | [logistic_regression_2a_01.ipynb](models/logistic_regression_2a_01.ipynb) | `ArrDel15` | 27 compact pre-pushback fields; 98 columns after training-based missing-value handling and category encoding | 2019: 107,354 JFK arrivals; delay rate 0.2029 | 2023: 109,947 JFK arrivals; delay rate 0.2463 | L1 logistic regression; `C=0.1`; no class weighting |
+| 2B | Logistic regression | 01 | [logistic_regression_2b_01.ipynb](models/logistic_regression_2b_01.ipynb) | `ArrDel15` | Exact 27-field 2A base plus signed `DepDelay`; 99 prepared columns | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | L1 logistic regression; `C=0.01`; no class weighting |
+| 2C | Logistic regression | 01 | [logistic_regression_2c_01.ipynb](models/logistic_regression_2c_01.ipynb) | `ArrDel15` | Exact 28-field 2B base plus log taxi-out and two cyclical takeoff-time fields; 102 prepared columns | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | L1 logistic regression; `C=0.1`; no class weighting |
 
 ## Ranking and calibration results
 
@@ -1282,6 +1285,9 @@ precision and ROC AUC are better; a lower Brier score means the predicted probab
 | 1A | Logistic regression | 03 | 0.3080 | 0.2364 | 0.3920 | 0.6762 | 0.1702 |
 | 1A | Decision tree | 01 | 0.2961 | 0.2364 | 0.3683 | 0.6603 | 0.2160 |
 | 1A | Decision tree | 02 | 0.3027 | 0.2364 | 0.3689 | 0.6638 | 0.1726 |
+| 2A | Logistic regression | 01 | 0.3128 | 0.2463 | 0.4019 | 0.6744 | 0.1741 |
+| 2B | Logistic regression | 01 | 0.8644 | 0.2463 | 0.8682 | 0.9126 | 0.0755 |
+| 2C | Logistic regression | 01 | 0.9013 | 0.2463 | 0.9090 | 0.9457 | 0.0616 |
 
 ## Operating-threshold results
 
@@ -1302,6 +1308,12 @@ prediction changes.
 | 1A | Decision tree | 01 | 2023 external validation | Training-selected F1 | 0.49 | 0.6546 | 0.6210 | 0.3536 | 0.5572 | 0.4326 | 0.2126 |
 | 1A | Decision tree | 02 | 2023 external validation | Default | 0.50 | 0.7649 | 0.5142 | 0.5376 | 0.0387 | 0.0723 | 0.0933 |
 | 1A | Decision tree | 02 | 2023 external validation | Training-selected F1 | 0.19 | 0.6538 | 0.6218 | 0.3536 | 0.5610 | 0.4338 | 0.2137 |
+| 2A | Logistic regression | 01 | 2023 external validation | Default | 0.50 | 0.7569 | 0.5116 | 0.6488 | 0.0282 | 0.0540 | 0.0971 |
+| 2A | Logistic regression | 01 | 2023 external validation | Training-selected F1 | 0.22 | 0.6515 | 0.6212 | 0.3650 | 0.5616 | 0.4425 | 0.2153 |
+| 2B | Logistic regression | 01 | 2023 external validation | Default | 0.50 | 0.9050 | 0.8281 | 0.9155 | 0.6766 | 0.7781 | 0.7327 |
+| 2B | Logistic regression | 01 | 2023 external validation | Training-selected F1 | 0.37 | 0.9050 | 0.8423 | 0.8729 | 0.7189 | 0.7884 | 0.7336 |
+| 2C | Logistic regression | 01 | 2023 external validation | Default | 0.50 | 0.9206 | 0.8608 | 0.9190 | 0.7431 | 0.8217 | 0.7786 |
+| 2C | Logistic regression | 01 | 2023 external validation | Training-selected F1 | 0.49 | 0.9206 | 0.8620 | 0.9156 | 0.7464 | 0.8224 | 0.7786 |
 
 ### Current Model 1A logistic-regression comparison
 
@@ -1336,6 +1348,29 @@ Experiment 02 is therefore the preferred single-tree feature set and the startin
 and CatBoost experiments. Its ranking improvement is too small to claim a clear overall gain. Both decision trees remain
 below the raw logistic baseline in 2023 average precision, ROC AUC, and F1 at the training-selected threshold. The next
 step is to test whether tree ensembles make better use of the traffic and weather relationships than a single tree.
+
+### Model 2A/2B/2C logistic-regression timing comparison
+
+These three experiments use identical 2019 and 2023 arrival rows, the same target, the same five time-ordered training
+folds, and the same 16 logistic-regression configurations. Model 2B changes only by adding signed `DepDelay`; Model 2C
+then changes only by adding log taxi-out duration and two cyclical actual-takeoff fields. Their differences can therefore
+be interpreted as the incremental predictive value available at each operational milestone.
+
+Before pushback, Model 2A provides modest ranking skill: 2023 AP is 0.4019 and ROC AUC is 0.6744. Adding signed gate
+delay in Model 2B produces the largest information gain. AP rises by 0.4662 to 0.8682, ROC AUC rises by 0.2382 to 0.9126,
+and Brier score falls by 0.0987 to 0.0755. At the training-selected threshold, F1 rises from 0.4425 to 0.7884. The
+standardized `DepDelay` coefficient is 6.53 and is much larger than every remaining Model 2B coefficient.
+
+Model 2C adds a further, smaller but still material improvement after takeoff. Relative to Model 2B, AP rises by 0.0408
+to 0.9090, ROC AUC rises by 0.0330 to 0.9457, Brier score falls by 0.0138 to 0.0616, and training-selected F1 rises by
+0.0339 to 0.8224. In the fitted Model 2C design, standardized coefficient magnitude is 7.92 for `DepDelay` and 1.29 for
+`LOG_TAXI_OUT_MINUTES`. The takeoff sine coefficient is only 0.032 and L1 regularization sets the cosine coefficient to
+zero. The post-takeoff gain is therefore associated primarily with realized taxi-out duration rather than clock time.
+
+The results support the planned information ladder: schedule, origin congestion, and weather provide a useful early
+estimate; actual gate delay dominates once pushback occurs; and realized taxi time supplies an additional update after
+takeoff. The operational fields are valid only at their stated prediction times and would require live gate-out and
+takeoff feeds in deployment. The 2024 arrivals remain untouched for final testing.
 
 # Appendix E
 
