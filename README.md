@@ -1,4 +1,4 @@
-# Capstone Project - Berkeley ML and AI 
+# Capstone Project - Berkeley ML and AI (in progress)
 ## Initial Report and Exploratory Data Analysis
 
 ## Table of Contents
