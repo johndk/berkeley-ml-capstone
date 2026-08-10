@@ -29,9 +29,8 @@
   - [Features](#features)
 - [Modeling](#modeling)
   - [Experiment roadmap](#experiment-roadmap)
-  - [Common experiment protocol](#common-experiment-protocol)
-  - [Results collected so far: Model 1A](#results-collected-so-far-model-1a)
-  - [Interpretation and next steps](#interpretation-and-next-steps)
+  - [How experiments are compared](#how-experiments-are-compared)
+  - [Arrival prediction comparison](#arrival-prediction-comparison)
 - [Evaluation](#evaluation)
 - [Deployment](#deployment)
 - [References](#references)
@@ -336,31 +335,40 @@ data/
 │   │   └── YEAR/
 │   │       ├── On_Time_Reporting_Carrier_On_Time_Performance_(1987_present)_YEAR_1.csv
 │   │       ├── ... monthly CSVs through YEAR_12.csv
-│   │       └── AIRPORT.csv
+│   │       ├── YEAR_csv_files.zip
+│   │       └── JFK.csv
 │   ├── processed/
-│   │   └── AIRPORT_YEAR.csv
+│   │   ├── _csv_files.zip
+│   │   └── JFK_YEAR.csv
 │   ├── cleaned/
-│   │   └── AIRPORT_YEAR.csv
+│   │   ├── _csv_files.zip
+│   │   └── JFK_YEAR.csv
 │   └── cleaned_JFK_YEAR.csv
 ├── aspm/
 │   ├── raw/
 │   │   └── aspm_output/
 │   │       └── run_YEAR_AIRPORT/
-│   │           └── aspm_YEAR_AIRPORT.csv
+│   │           ├── aspm_YEAR_AIRPORT.csv
+│   │           └── raw_html.zip
 │   ├── processed/
-│   │   └── AIRPORT_YEAR.csv
+│   │   ├── _csv_files.zip
+│   │   └── JFK_YEAR.csv
 │   ├── cleaned/
-│   │   └── AIRPORT_YEAR.csv
+│   │   ├── _csv_files.zip
+│   │   └── JFK_YEAR.csv
 │   └── cleaned_JFK_YEAR.csv
 ├── noaa/
 │   ├── raw/
 │   │   ├── airport_station_map.csv
 │   │   └── YEAR/
+│   │       ├── YEAR_csv_files.zip
 │   │       └── STATION.csv
 │   ├── processed/
-│   │   └── AIRPORT_YEAR.csv
+│   │   ├── _csv_files.zip
+│   │   └── JFK_YEAR.csv
 │   ├── cleaned/
-│   │   └── AIRPORT_YEAR.csv
+│   │   ├── _csv_files.zip
+│   │   └── JFK_YEAR.csv
 │   └── cleaned_JFK_YEAR.csv
 ├── merged/
 │   ├── JFK_YEAR_departures.csv
@@ -370,114 +378,115 @@ data/
     └── JFK_YEAR_arrivals.csv
 ```
 
-`YEAR` is 2019, 2023, or 2024; `AIRPORT` identifies an airport in the working cohort; and `STATION` is the NOAA station
-identifier mapped to that airport. Files inside each source's `cleaned/` directory are per-airport inputs. The
-`cleaned_JFK_YEAR.csv` files at the source roots are the consolidated, destination-specific inputs used by the arrival
-merge.
+`YEAR` stands for 2019, 2023, or 2024. `AIRPORT` is an airport included in the project, and `STATION` is the NOAA weather
+station matched to that airport. Within each source directory, `cleaned/` holds one cleaned CSV for each airport and
+year. The `cleaned_JFK_YEAR.csv` files combine the airport data needed for flights arriving at JFK, giving the arrival
+merge one consolidated input from each source.
 
-The preparation design provides a traceable path from source data to model input while making two checks explicit: each
-merged or feature row continues to represent one eligible flight, and each model may use only information available at
-its stated prediction time. Model 1A predicts departure delay for flights leaving JFK. Models 2A, 2B, and 2C predict
-arrival delay for flights bound for JFK, using conditions at each flight's origin and progressively later operating
-information.
+This layout makes it possible to follow the data from the original sources to the final model-ready features. Along the
+way, the preparation steps check that every merged or feature row still represents one eligible flight and that a model
+uses only information that would have been available when its prediction is made. Model 1A predicts departure delay for
+flights leaving JFK. Models 2A, 2B, and 2C predict arrival delay for flights headed to JFK, using conditions at the
+flight's origin and adding operating information as it becomes available.
 
 ### BTS
 
-The `data/bts/` hierarchy supplies the flight-level record and target for both scenarios; each cleaned row represents
-one completed domestic flight. BTS On-Time Performance data arrives as monthly files containing flights reported by all
-included United States carriers. For each year and airport, the raw files are filtered into an annual `AIRPORT.csv`
-containing flights for which that airport is an endpoint.
+The `data/bts/` directory provides the flight records and delay targets for both scenarios. Each cleaned row represents
+one completed domestic flight. BTS On-Time Performance data is downloaded as monthly files covering flights reported by
+the included United States airlines. For each airport and year, these raw files are filtered into one annual
+`AIRPORT.csv` containing flights that either depart from or arrive at that airport.
 
-`process_bts.ipynb` reduces each annual airport file to the schedule, airline, route, distance, operating-event, and
-outcome fields needed by the project. It also removes cancelled and diverted flights because their ordinary departure
-or scheduled-destination arrival outcomes are not comparable with completed flights, then writes
-`data/bts/processed/AIRPORT_YEAR.csv`. `clean_bts.ipynb` standardizes and validates dates, clock fields, airport and
-carrier codes, duplicate-flight keys, numeric ranges, and delay labels. It constructs `DATE`, the scheduled-departure
-timestamp used by both merge paths, and writes the per-airport result to `data/bts/cleaned/AIRPORT_YEAR.csv`.
+`process_bts.ipynb` keeps the schedule, airline, route, distance, operating-event, and outcome fields needed for the
+project. It removes cancelled and diverted flights because their delay outcomes cannot be compared fairly with those of
+completed flights. It then writes `data/bts/processed/AIRPORT_YEAR.csv`. `clean_bts.ipynb` standardizes and checks dates,
+clock fields, airport and carrier codes, duplicate-flight keys, numeric ranges, and delay labels. It also creates `DATE`,
+the scheduled-departure timestamp used by both merge paths, and writes the cleaned airport file to
+`data/bts/cleaned/AIRPORT_YEAR.csv`.
 
 The two scenarios use these cleaned records differently:
 
-- **Departure scenario:** `data/bts/cleaned/JFK_YEAR.csv` supplies flights whose `Origin` is `JFK`; `DepDel15` is the
-  Model 1A target.
-- **Arrival scenario:** `data/bts/cat_bts.py` combines the cleaned airport-year files, retains flights whose `Dest` is
-  `JFK`, normalizes flight numbers, removes overlapping duplicate rows, and writes `data/bts/cleaned_JFK_YEAR.csv`.
-  `ArrDel15` is the shared target for Models 2A, 2B, and 2C. The same BTS row also retains the pushback and takeoff fields
-  that become eligible at the later 2B and 2C prediction times.
+- **Departure scenario:** `data/bts/cleaned/JFK_YEAR.csv` provides flights with `JFK` as their `Origin`. `DepDel15` is the
+  target for Model 1A.
+- **Arrival scenario:** `data/bts/cat_bts.py` combines the cleaned airport-year files, keeps flights with `JFK` as their
+  `Dest`, standardizes flight numbers, removes duplicate rows created by overlapping files, and writes
+  `data/bts/cleaned_JFK_YEAR.csv`. `ArrDel15` is the target shared by Models 2A, 2B, and 2C. The BTS row also keeps the
+  pushback and takeoff fields that Models 2B and 2C may use at their later prediction times.
 
 ### ASPM
 
-The `data/aspm/` hierarchy provides planned airport demand rather than individual-flight outcomes; each cleaned row
-represents one airport and clock hour. The raw collection contains one annual hourly file for each airport.
-`process_aspm.ipynb` removes supporting calculation fields and realized performance measures that are published too late
-for the project's prediction times. It retains only the airport and time identifiers plus scheduled hourly departures
-and arrivals, then writes `data/aspm/processed/AIRPORT_YEAR.csv`.
+The `data/aspm/` directory provides the planned number of arrivals and departures at each airport, rather than results
+for individual flights. Each cleaned row represents one airport and one clock hour. The raw data contains one annual
+hourly file for each airport. `process_aspm.ipynb` removes supporting calculation fields and actual performance measures
+that are published too late for the project's prediction times. It keeps the airport and time identifiers together with
+the scheduled hourly departure and arrival counts, then writes `data/aspm/processed/AIRPORT_YEAR.csv`.
 
-`clean_aspm.ipynb` validates airport-hour keys, numeric values, duplicate records, row order, and hourly coverage. It
-completes sparse hours where required and constructs an hourly `DATE` timestamp before writing
-`data/aspm/cleaned/AIRPORT_YEAR.csv`. The scheduled counts are treated as planned values known before departure; no
-realized ASPM delay or on-time metric is used as a predictor.
+`clean_aspm.ipynb` checks airport-hour keys, numeric values, duplicate records, row order, and hourly coverage. It fills
+in missing clock hours where needed and creates an hourly `DATE` timestamp before writing
+`data/aspm/cleaned/AIRPORT_YEAR.csv`. The scheduled counts are plans known before departure. Actual ASPM delay and
+on-time measures are not used as predictors.
 
-- **Departure scenario:** the merge uses the cleaned JFK file because every Model 1A flight departs from JFK.
-- **Arrival scenario:** `data/aspm/cat_aspm.py` derives the required origins from the JFK-bound BTS table and consolidates
-  their cleaned airport-year files into `data/aspm/cleaned_JFK_YEAR.csv`. Each arrival is matched to planned demand at
-  its own origin, not to destination demand at JFK.
+- **Departure scenario:** the merge uses the cleaned JFK file because every Model 1A flight leaves from JFK.
+- **Arrival scenario:** `data/aspm/cat_aspm.py` finds the required origin airports in the table of JFK-bound flights and
+  combines their cleaned airport-year files into `data/aspm/cleaned_JFK_YEAR.csv`. Each flight is matched to planned
+  demand at its origin, not at its JFK destination.
 
 ### NOAA
 
-The `data/noaa/` hierarchy provides weather observations for the airport where the flight departs; each cleaned row is
-one selected weather report for an airport timestamp. Raw Local Climatological Data is stored as one annual CSV per
-station. `airport_station_map.csv` maps each airport in the working cohort to the corresponding NOAA station so the
-airport key remains consistent across sources.
+The `data/noaa/` directory provides weather observations from the airport where each flight departs. Each cleaned row is
+one selected weather report for an airport and time. Raw Local Climatological Data is stored in one annual CSV for each
+weather station. `airport_station_map.csv` links every project airport to its NOAA station so the same airport code can
+be used across the data sources.
 
-`process_noaa.ipynb` selects the useful weather measurements, removes records with no usable observations, and writes
-`data/noaa/processed/AIRPORT_YEAR.csv`.
-`clean_noaa.ipynb` chooses one preferred report at each timestamp, converts trace precipitation to a small numeric value,
-decodes reported-weather text into condition indicators, and converts wind direction and speed into `WindX` and `WindY`.
-Continuous measurements may be filled only from an earlier observation no more than 90 minutes old; leading values and
-longer gaps remain missing for a training-fitted model pipeline to handle. The cleaned output is written to
+`process_noaa.ipynb` keeps the useful weather measurements, removes reports with no usable observations, and writes
+`data/noaa/processed/AIRPORT_YEAR.csv`. `clean_noaa.ipynb` selects one preferred report for each timestamp, converts trace
+precipitation to a small numeric value, turns reported-weather text into condition indicators, and converts wind
+direction and speed into `WindX` and `WindY`. A missing continuous measurement may be filled from an earlier report only
+when that report is no more than 90 minutes old. Missing values at the beginning of a file and across longer gaps are
+left for the model's training pipeline to handle. The cleaned file is written to
 `data/noaa/cleaned/AIRPORT_YEAR.csv`.
 
-- **Departure scenario:** the cleaned JFK station-year file supplies weather observed at JFK before the scheduled
-  departure.
-- **Arrival scenario:** `data/noaa/cat_noaa.py` consolidates the cleaned station data for the origins found in the
-  JFK-bound BTS table into `data/noaa/cleaned_JFK_YEAR.csv`. Each flight receives weather from its origin; destination
-  weather and weather observed near landing are outside the baseline design.
+- **Departure scenario:** the cleaned JFK station-year file provides weather observed at JFK before scheduled departure.
+- **Arrival scenario:** `data/noaa/cat_noaa.py` combines the cleaned station data for the origin airports found in the
+  JFK-bound BTS table and writes `data/noaa/cleaned_JFK_YEAR.csv`. Each flight receives weather from its origin.
+  Destination weather and weather observed near landing are not part of the baseline design.
 
 ### Merged
 
-The `data/merged/` hierarchy contains one row per eligible flight after the flight, planned-demand, and weather sources
-have been assembled. The merge notebooks retain source airport keys, timestamps, and timing offsets so airport alignment
-and prediction-time safety can be audited. Missing source matches are reported rather than silently dropping flight
-rows.
+The `data/merged/` directory contains one row for each eligible flight after the flight, planned-demand, and weather data
+have been brought together. The merge notebooks keep source airport codes, timestamps, and time differences so that the
+airport matches and prediction timing can be checked. If a source record cannot be matched, the notebooks report it
+instead of silently removing the flight.
 
-- **Departure scenario:** `merge_departures.ipynb` keeps flights with `Origin == JFK`, joins JFK ASPM records for the
-  previous, current, and next clock hours around scheduled departure, and attaches the latest JFK NOAA report at or
-  before scheduled departure within a 90-minute tolerance. It writes `data/merged/JFK_YEAR_departures.csv`.
-- **Arrival scenario:** `merge_arrivals.ipynb` keeps flights with `Dest == JFK` and performs airport-aware joins keyed by
-  each flight's `Origin`. It attaches that origin's three ASPM periods and latest time-safe NOAA report, then writes
-  `data/merged/JFK_YEAR_arrivals.csv`. Destination ASPM and NOAA data are not added.
+- **Departure scenario:** `merge_departures.ipynb` keeps flights with `Origin == JFK`. It joins JFK ASPM records for the
+  previous, current, and next clock hours around scheduled departure and adds the latest JFK NOAA report available at or
+  before scheduled departure, as long as it is no more than 90 minutes old. It writes
+  `data/merged/JFK_YEAR_departures.csv`.
+- **Arrival scenario:** `merge_arrivals.ipynb` keeps flights with `Dest == JFK` and matches the other sources using each
+  flight's `Origin`. It adds the origin's three ASPM periods and latest NOAA report available by scheduled departure, as
+  long as the report is no more than 90 minutes old. It then writes `data/merged/JFK_YEAR_arrivals.csv`. ASPM and NOAA
+  data for the JFK destination are not added.
 
-The next-hour ASPM values in both files are planned schedule counts known ahead of time, not future operating results.
-The merged files retain source and outcome columns for validation, but retention does not make every column an eligible
-predictor.
+The next-hour ASPM values in both files are planned schedule counts known in advance, not future operating results. The
+merged files keep source and outcome columns for checking the data, but this does not mean that every retained column may
+be used as a model predictor.
 
 ### Features
 
-The `data/features/` hierarchy contains the deterministic feature layer used by the modeling notebooks. Each row still
-represents the same flight as its merged input. Feature engineering at this stage applies fixed formulas only; it does
-not fit imputers, encoders, scalers, feature selectors, resampling methods, or decision thresholds.
+The `data/features/` directory contains the feature files used by the modeling notebooks. Each row still represents the
+same flight as the matching row in the merged file. This step creates features using fixed formulas only. It does not
+fit or choose imputers, encoders, scalers, feature selectors, resampling methods, or decision thresholds. Those steps
+belong to modeling rather than shared feature creation.
 
-- **Departure scenario:** `feature_departures.ipynb` adds the common pre-pushback features and writes
+- **Departure scenario:** `feature_departures.ipynb` adds the shared features available before pushback and writes
   `data/features/JFK_YEAR_departures.csv` for Model 1A.
-- **Arrival scenario:** `feature_arrivals.ipynb` writes `data/features/JFK_YEAR_arrivals.csv`, which contains the union of
-  features needed at all three horizons. Model 2A uses only schedule and origin context available before pushback;
-  Model 2B adds actual gate-departure time and delay information; and Model 2C additionally allows taxi-out and
-  wheels-off information.
+- **Arrival scenario:** `feature_arrivals.ipynb` writes `data/features/JFK_YEAR_arrivals.csv`. This file contains all
+  features needed across the three arrival prediction times. Model 2A uses only schedule and origin information
+  available before pushback. Model 2B adds the actual gate-departure time and departure-delay information. Model 2C also
+  allows taxi-out and wheels-off information.
 
-These shared files deliberately retain more columns than any one model may use. Each model notebook applies the
-corresponding prediction-time allowlist—the named set of columns permitted at that horizon—from
-`notebooks/feature_engineering.py` and fits all learned preprocessing on training data only. There is no separate
-`data/models/` dataset stage and no generated `_m1a`, `_m2a`, `_m2b`, or `_m2c` CSV for each model.
+These shared files intentionally contain more columns than any one model may use. Each model notebook uses the allowlist
+for its prediction time—the named set of columns permitted at that point—from `notebooks/feature_engineering.py`. Any
+preprocessing that must learn from the data is fitted on the training data only.
 
 [Appendix A](#appendix-a) documents the [BTS](#bts-column-selection-and-dictionary),
 [ASPM](#aspm-column-selection-and-dictionary), and [NOAA](#noaa-column-selection-and-dictionary) source-column
@@ -487,130 +496,90 @@ decisions. [Appendix B](#appendix-b) documents the
 
 ## Modeling
 
-The project now uses a registered experiment program rather than a small collection of standalone baseline notebooks.
-[Appendix C](#appendix-c) defines the planned experiments and the rules that make them comparable. [Appendix D](#appendix-d)
-records completed runs only after their model search and external-validation evaluation have finished. This section
-summarizes that plan and the results collected to date without duplicating the detailed registries.
+The project uses four models to answer two related questions: whether a flight will leave JFK at least 15 minutes late,
+and whether a flight headed to JFK will arrive at least 15 minutes late. The arrival prediction is updated as more
+information becomes available during the flight.
+
+| Model | Prediction time | Flights and target | Information available |
+|---|---|---|---|
+| 1A | Before pushback | JFK departures; predict `DepDel15` | Schedule, route, planned JFK traffic, and JFK weather |
+| 2A | Before pushback at the origin | JFK arrivals; predict `ArrDel15` | Schedule, route, planned origin traffic, and origin weather |
+| 2B | Immediately after pushback | Same JFK arrivals and target as 2A | Model 2A information plus actual gate-out time and departure delay |
+| 2C | Immediately after takeoff | Same JFK arrivals and target as 2A | Model 2B information plus taxi-out time and actual takeoff time |
+
+[Appendix C](#appendix-c) contains the full experiment plan and notebook registry. [Appendix D](#appendix-d) records the
+settings and results for completed experiments.
 
 ### Experiment roadmap
 
-The primary task remains binary classification of a delay of at least 15 minutes. The work is organized into four
-phases so the broad method search is completed before the project spends the same computation at every arrival horizon.
+The experiment plan has four stages. The first two cover the main 15-minute delay predictions. The final two are
+optional extensions that ask more detailed questions about the length and range of a delay.
 
-| Phase | Modeling question | Scope | Current status |
-|---|---|---|---|
-| I | Which classifiers and feature representations best predict a significant JFK departure delay before pushback? | Screen logistic regression, decision trees, KNN, Naive Bayes, SVM, LDA, bagging, Random Forest, Extra Trees, boosting, CatBoost, and a multilayer perceptron for Model 1A; also test imbalance treatment and probability calibration. | In progress; three logistic-regression and two decision-tree experiments are recorded. |
-| II | How much does arrival prediction improve as actual operating information becomes available? | Carry the core logistic-regression, decision-tree, Random Forest, and CatBoost families through Models 2A, 2B, and 2C on identical JFK-arrival rows. | Planned after the Model 1A screen identifies suitable configurations. |
-| III | Can the models distinguish useful delay-severity groups rather than only the 15-minute threshold? | Evaluate multi-class Random Forest models for departure and arrival delay groups. | Planned as a secondary extension. |
-| IV | Can signed delay minutes or a full delay distribution provide useful probabilistic forecasts? | Evaluate regression and distributional methods, including Random Forest, neural-network, mixture-density, and CatBoost ensemble variants. | Planned after the primary classifiers; equivalent arrival regression requires a signed arrival-delay target. |
-
-The [primary experiment registry](#primary-binary-classification-experiments) gives the notebook and purpose of every
-Phase I and II run. The [secondary experiment registry](#secondary-multi-class-and-probabilistic-experiments) separates
-the multi-class, regression, and probabilistic work so those results are not mixed into the primary binary-classifier
-leaderboard.
-
-### Common experiment protocol
-
-All registered experiments use the same evidence standard:
-
-1. Model 1A uses JFK departures and target `DepDel15`; Models 2A, 2B, and 2C use the same JFK-arrival population and
-   target `ArrDel15`, changing only the information available at the prediction horizon.
-2. Feature and hyperparameter selection use complete-day, forward-chaining folds within 2019. The selected pipeline is
-   trained on 2019 and evaluated on the complete 2023 external-validation year. The 2024 data remains locked until the
-   final model and operating threshold are selected.
-3. Each notebook declares an explicit prediction-time feature allowlist. Imputation, encoding, scaling, feature
-   selection, resampling, calibration, and threshold selection are fitted on training data only.
-4. Average precision is the primary ranking metric because delayed flights are the minority class. ROC AUC and Brier
-   score measure ranking and probability quality; precision, recall, F1, MCC, balanced accuracy, and confusion matrices
-   describe a stated operating threshold. Ordinary accuracy is secondary.
-5. Results are compared only within a compatible target and population. Classifiers may be compared within Model 1A,
-   while Models 2A, 2B, and 2C may be compared with one another only on identical arrival rows.
-
-The complete protocol, including reproducibility, explainability, subgroup checks, and training-only resampling rules,
-is documented in [Appendix C: Experiment protocol](#experiment-protocol).
-
-### Results collected so far: Model 1A
-
-Appendix D currently contains five completed Model 1A experiments. Every run uses 107,430 JFK departures from 2019 for
-training and temporal model selection, followed by external validation on 109,983 JFK departures from 2023. The 2023
-delay prevalence is 0.2364. The summary below reports threshold-independent validation metrics and F1 at a threshold
-selected only from 2019 out-of-fold predictions.
-
-| Classifier | Experiment | Feature representation | 2023 AP | 2023 ROC AUC | 2023 Brier | Selected threshold | 2023 F1 |
-|---|---:|---|---:|---:|---:|---:|---:|
-| Logistic regression | 01 | 20 raw pre-pushback predictors | 0.3959 | 0.6825 | 0.1692 | 0.17 | 0.4496 |
-| Logistic regression | 02 | 27 compact raw/engineered predictors | 0.3869 | 0.6762 | 0.1707 | 0.22 | 0.4347 |
-| Logistic regression | 03 | 54 broad raw/engineered predictors | 0.3920 | 0.6762 | 0.1702 | 0.22 | 0.4346 |
-| Decision tree | 01 | 20 raw pre-pushback predictors | 0.3683 | 0.6603 | 0.2160 | 0.49 | 0.4326 |
-| Decision tree | 02 | 34 compact raw/engineered predictors | 0.3689 | 0.6638 | 0.1726 | 0.19 | 0.4338 |
-
-The full [experiment configurations](#experiment-configurations),
-[ranking and calibration results](#ranking-and-calibration-results), and
-[operating-threshold results](#operating-threshold-results) remain in Appendix D. No 2024 result has been examined or
-reported.
-
-### Interpretation and next steps
-
-The results collected so far establish reproducible Model 1A baselines, not a final model winner. Among the five
-completed runs, raw logistic-regression Experiment 01 currently provides the strongest combined 2023 ranking,
-calibration, and training-selected-threshold F1. The two engineered logistic representations do not improve external
-validation performance and are therefore not promoted on present evidence. All five validation AP values exceed the
-2023 delay prevalence of 0.2364, indicating useful ranking signal, but the remaining Phase I experiments are needed
-before selecting finalists.
-
-The compact engineered decision-tree representation is preferred to the raw tree. Its 2023 AP and ROC AUC gains are
-small, but its Brier score improves from 0.2160 to 0.1726. Engineered planned-traffic summaries contribute useful splits,
-including `ASPM_MAX_HOURLY_TRAFFIC`, but both single-tree experiments remain below the raw logistic baseline on AP,
-ROC AUC, and selected-threshold F1. The Brier improvement cannot be attributed to features alone because the two tree
-searches also selected different class-weight settings. The evidence supports testing the same congestion and weather
-interactions with ensemble trees rather than claiming that feature engineering has already produced a decisive gain.
-
-The threshold results also confirm that model ranking and operational classification are different decisions. At the
-default 0.50 threshold, the logistic models identify very few delayed flights. Thresholds selected only from 2019
-out-of-fold predictions produce much higher 2023 recall and F1, but with more false alarms. A final threshold therefore
-cannot be chosen from accuracy alone and must remain separate from model and feature selection.
-
-The next registered work is to:
-
-1. Complete the Phase I Model 1A screen, prioritizing the planned pruned tree, Random Forest, CatBoost, other referenced
-   classifier families, and controlled imbalance experiments under the same temporal protocol.
-2. Compare calibration methods for the strongest finalists and add global and flight-level explanations, followed by
-   error and calibration checks by month, time of day, airline, route, weather, and planned traffic.
-3. Carry the core logistic-regression, decision-tree, Random Forest, and CatBoost configurations into Models 2A, 2B,
-   and 2C, changing only prediction-time-eligible operating information.
-4. Freeze the selected feature, model, calibration, and threshold design before evaluating the locked 2024 final test.
-
-#### Planned arrival comparison
-
-Models 2A, 2B, and 2C predict the same arrival-delay outcome at three different points in the flight:
-
-| Model | Prediction time | Information added |
+| Stage | Main question | Work included |
 |---|---|---|
-| 2A | Before pushback at the origin | Schedule, route, origin airport traffic, and origin weather |
-| 2B | Immediately after pushback | Model 2A information plus actual gate-out time and departure delay |
-| 2C | Immediately after takeoff | Model 2B information plus taxi-out time and actual takeoff time |
+| I | Which approach works best for predicting a JFK departure delay before pushback? | Compare Model 1A feature sets and a broad group of methods: logistic regression, decision trees, K-nearest neighbors (KNN), Naive Bayes, support vector machine (SVM), linear discriminant analysis (LDA), bagging, Random Forest, Extra Trees, boosting, CatBoost, and a neural network. Also compare methods for handling the smaller delayed class and for improving predicted probabilities. |
+| II | How much does arrival prediction improve when pushback and takeoff information become available? | Compare logistic regression, decision tree, Random Forest, and CatBoost across Models 2A, 2B, and 2C using the same JFK-arrival flights. A method from Stage I may also be included if it provides a clear benefit. |
+| III | Can the models distinguish several levels of delay instead of only using the 15-minute cutoff? | Test Random Forest models that predict several departure and arrival delay categories. |
+| IV | Can the models estimate delay minutes or a range of likely delay outcomes? | Test methods that predict either delay minutes or a range of possible delays, including Random Forest, neural-network, mixture-density, and CatBoost ensemble approaches. Arrival versions would require a target that records early arrivals as negative minutes and late arrivals as positive minutes; the feature files do not contain that target. |
 
-Appendix D does not yet contain a completed Model 2A, 2B, or 2C experiment. These rows define the controlled comparison
-that will begin after suitable Model 1A configurations have been selected.
+Stage I provides a broad but manageable comparison on Model 1A. Stage II then applies the main model families to the
+three arrival prediction times. This avoids running every possible method and feature set at every prediction time while
+still allowing a strong Stage I method to be carried into the arrival comparison. Stages III and IV are kept separate
+from the main 15-minute yes-or-no results because they predict different outcomes.
 
-There is good reason to expect Models 2B and 2C to improve on Model 2A. Li and Chen found that departure delay was the
-most important input for predicting arrival delay, and their predictions improved as actual departure information was
-added. Snell et al. also reported better arrival predictions after adding actual departure-delay information.
+The [primary experiment registry](#primary-binary-classification-experiments) lists the Stage I and II notebooks. The
+[secondary experiment registry](#secondary-multi-class-and-probabilistic-experiments) lists the Stage III and IV work.
 
-The improvement is still something this project must demonstrate. Zoutendijk and Mitici found that arrival delays were
-harder to predict than departure delays in their data. This project's arrival data also includes many origin airports,
-while Model 1A always begins at JFK. The arrival problem may therefore contain more variation in weather, traffic, and
-airport operations.
+### How experiments are compared
 
-Models 2A, 2B, and 2C will be compared using the same flights and the same date ranges. Only the newly available
-operating information will change from one model to the next. This will show whether actual departure delay and takeoff
-information really improve the predictions. It will also show an important tradeoff: a prediction made after takeoff
-may be more accurate, but it gives the airline and passengers less advance warning.
+Every experiment follows the same rules so the results can be compared fairly:
 
-The timing rules must remain strict. `DepTime` and `DepDelay` cannot be used in Model 2A because they are not known
-before pushback. `TaxiOut` and `WheelsOff` cannot be used in Models 2A or 2B because they are not fully known until
-takeoff. Keeping these fields out of the earlier models ensures that any improvement is based on information that
-would truly have been available at that prediction time.
+1. **Keep the flight populations consistent.** Model 1A uses JFK departures and `DepDel15`. Models 2A, 2B, and 2C use
+   the same JFK-arrival flights and `ArrDel15`. Only the information available at each arrival prediction time changes.
+2. **Respect time order.** Features and model settings are chosen by moving through complete days of 2019 in time order:
+   earlier periods are used for training and later periods for checking the model. The selected modeling process is then
+   trained on 2019 and checked on the complete 2023 dataset. The 2024 data is reserved for the final test after the model
+   and decision threshold have been chosen.
+3. **Prevent future information from entering the model.** Each notebook has a clear list of fields allowed at its
+   prediction time. Any step that learns from the data—including filling missing values, converting categories into
+   numeric inputs, scaling values, choosing features, balancing the two outcome classes, adjusting probabilities, and
+   selecting a decision threshold—uses training data only.
+4. **Use measures suited to an uncommon outcome.** Delayed flights are the smaller class, so average precision is the
+   main measure used to rank models. ROC AUC provides another view of ranking, and the Brier score checks the quality of
+   predicted probabilities. At a chosen cutoff, precision shows how often delay alerts are correct, recall shows how
+   many delayed flights are found, and F1 balances those two measures. Ordinary accuracy is supporting information
+   because it can look good even when a model misses many delayed flights. Appendix C lists the additional measures.
+5. **Choose the decision threshold separately.** Results are reported at the standard 0.50 cutoff and at a cutoff chosen
+   from 2019 training-period predictions. The 2023 or 2024 outcomes are not used to choose that cutoff.
+6. **Compare like with like.** Modeling methods are compared within the same model and flight population. Models 2A,
+   2B, and 2C are compared on identical arrival rows so any difference reflects the newly available flight information
+   rather than a change in the sample.
+
+The full rules for repeatability, class balancing, model explanations, and checks across months, airlines, routes,
+weather, and traffic levels are in [Appendix C: Experiment protocol](#experiment-protocol).
+
+### Arrival prediction comparison
+
+Models 2A, 2B, and 2C are designed as a controlled comparison. They use the same flights, date ranges, target, and basic
+schedule, route, traffic, and weather fields. Model 2B adds information known at pushback, and Model 2C adds information
+known at takeoff. This setup measures the value of waiting for actual operating information.
+
+The field rules follow the same timing. `DepTime` and `DepDelay` are not available to Model 2A because pushback has not
+occurred. `TaxiOut` and `WheelsOff` are not available to Models 2A or 2B because they are not fully known until takeoff.
+This keeps information from later in the flight out of the earlier predictions.
+
+Earlier research suggests that actual departure information can improve arrival-delay prediction, especially once the
+departure delay is known. This project tests that result across the same JFK-bound flights. The comparison also captures
+a practical tradeoff: a prediction made after takeoff may be more accurate, but it gives airlines and passengers less
+time to act.
+
+Arrival prediction may also be harder than departure prediction. Model 1A always describes operations at JFK, while the
+arrival models include flights from many origins with different weather, traffic, and airport conditions. Using the same
+arrival rows for Models 2A, 2B, and 2C makes that added variation part of every arrival experiment rather than a source
+of unfair differences between them.
+
+Completed experiment configurations, model-comparison measures, and decision-threshold results are recorded in
+[Appendix D](#appendix-d).
 
 ## Evaluation
 
