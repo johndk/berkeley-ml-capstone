@@ -53,17 +53,16 @@
     - [NOAA fields dropped during processing](#noaa-fields-dropped-during-processing)
     - [NOAA names after merge](#noaa-names-after-merge)
 - [Appendix B](#appendix-b)
-  - [Joined Model-Assembly Column Dictionary](#joined-model-assembly-column-dictionary)
+  - [Joined Data Column Dictionary](#joined-data-column-dictionary)
     - [Joined BTS flight columns](#joined-bts-flight-columns)
     - [Joined ASPM planned-demand columns](#joined-aspm-planned-demand-columns)
     - [Joined NOAA weather columns](#joined-noaa-weather-columns)
   - [Feature Engineering](#feature-engineering)
-    - [Initial core engineered features](#initial-core-engineered-features)
-    - [Feature selection and leakage rules](#feature-selection-and-leakage-rules)
+    - [Engineered feature dictionary](#engineered-feature-dictionary)
+    - [Feature selection and timing rules](#feature-selection-and-timing-rules)
 - [Appendix C](#appendix-c)
   - [Experiment protocol](#experiment-protocol)
   - [Primary binary-classification experiments](#primary-binary-classification-experiments)
-  - [Secondary multi-class and probabilistic experiments](#secondary-multi-class-and-probabilistic-experiments)
   - [Reference-model coverage and scope decisions](#reference-model-coverage-and-scope-decisions)
 - [Appendix D](#appendix-d)
   - [Results recording rules](#results-recording-rules)
@@ -71,6 +70,7 @@
   - [Ranking and calibration results](#ranking-and-calibration-results)
   - [Operating-threshold results](#operating-threshold-results)
     - [Current Model 1A logistic-regression comparison](#current-model-1a-logistic-regression-comparison)
+- [Appendix E](#appendix-e)
 
 ## Overview
 
@@ -278,8 +278,9 @@ This time-based matching prevents a model from using airport conditions or weath
 | Arrival   | Model 2B | `ArrDel15` | Model 2A information plus the actual departure time and departure delay |
 | Arrival   | Model 2C | `ArrDel15` | Model 2B information plus taxi-out and takeoff information |
 
-Each model notebook engineers features that summarize time of day, season, route, distance, congestion, and weather. Each
-saved model dataset excludes information recorded after its stated prediction time.
+The shared feature files include measures of time of day, season, route, distance, planned traffic, and weather. Each
+model notebook uses only the fields allowed at its prediction time, so information recorded later in the flight is left
+out of that model.
 
 ### EDA
 
@@ -491,7 +492,7 @@ preprocessing that must learn from the data is fitted on the training data only.
 [Appendix A](#appendix-a) documents the [BTS](#bts-column-selection-and-dictionary),
 [ASPM](#aspm-column-selection-and-dictionary), and [NOAA](#noaa-column-selection-and-dictionary) source-column
 decisions. [Appendix B](#appendix-b) documents the
-[joined model-assembly columns](#joined-model-assembly-column-dictionary) and
+[joined data columns](#joined-data-column-dictionary) and
 [feature-engineering analysis](#feature-engineering).
 
 ## Modeling
@@ -512,23 +513,19 @@ settings and results for completed experiments.
 
 ### Experiment roadmap
 
-The experiment plan has four stages. The first two cover the main 15-minute delay predictions. The final two are
-optional extensions that ask more detailed questions about the length and range of a delay.
+The core experiment plan has two stages. Both focus on the project's main goal: predicting whether a flight will be at
+least 15 minutes late.
 
 | Stage | Main question | Work included |
 |---|---|---|
 | I | Which approach works best for predicting a JFK departure delay before pushback? | Compare Model 1A feature sets and a broad group of methods: logistic regression, decision trees, K-nearest neighbors (KNN), Naive Bayes, support vector machine (SVM), linear discriminant analysis (LDA), bagging, Random Forest, Extra Trees, boosting, CatBoost, and a neural network. Also compare methods for handling the smaller delayed class and for improving predicted probabilities. |
 | II | How much does arrival prediction improve when pushback and takeoff information become available? | Compare logistic regression, decision tree, Random Forest, and CatBoost across Models 2A, 2B, and 2C using the same JFK-arrival flights. A method from Stage I may also be included if it provides a clear benefit. |
-| III | Can the models distinguish several levels of delay instead of only using the 15-minute cutoff? | Test Random Forest models that predict several departure and arrival delay categories. |
-| IV | Can the models estimate delay minutes or a range of likely delay outcomes? | Test methods that predict either delay minutes or a range of possible delays, including Random Forest, neural-network, mixture-density, and CatBoost ensemble approaches. Arrival versions would require a target that records early arrivals as negative minutes and late arrivals as positive minutes; the feature files do not contain that target. |
 
 Stage I provides a broad but manageable comparison on Model 1A. Stage II then applies the main model families to the
 three arrival prediction times. This avoids running every possible method and feature set at every prediction time while
-still allowing a strong Stage I method to be carried into the arrival comparison. Stages III and IV are kept separate
-from the main 15-minute yes-or-no results because they predict different outcomes.
+still allowing a strong Stage I method to be carried into the arrival comparison.
 
-The [primary experiment registry](#primary-binary-classification-experiments) lists the Stage I and II notebooks. The
-[secondary experiment registry](#secondary-multi-class-and-probabilistic-experiments) lists the Stage III and IV work.
+The [experiment registry](#primary-binary-classification-experiments) lists the Stage I and II notebooks.
 
 ### How experiments are compared
 
@@ -606,25 +603,27 @@ Completed experiment configurations, model-comparison measures, and decision-thr
 
 # Appendix A
 
-This appendix documents source-column selection, processing decisions, and timing eligibility for BTS, ASPM, and NOAA.
+This appendix explains which BTS, ASPM, and NOAA columns are kept, which are removed, and when each retained field is
+available to the four models. It describes the cleaned source files that feed the departure and arrival merges.
 
 ## BTS Column Selection and Dictionary
 
-The downloaded BTS data contains 110 columns. Processing removes cancelled and diverted flights and drops 83
-unneeded columns. Cleaning validates the remaining fields and adds `DATE`, producing 28 columns before 
-the ASPM and NOAA merge join.
+The downloaded BTS data contains 110 columns. Processing removes cancelled and diverted flights and drops 83 columns
+that are not needed. Cleaning checks the remaining fields and adds `DATE`, producing 28 columns before the ASPM and NOAA
+data are joined.
 
-Column selection is based on both usefulness and timing. A value may be useful for describing a completed flight but 
-still be an invalid predictor if it becomes known only after the model's prediction time. Using such a value would give 
-the model information from the future, commonly called target or time leakage.
+A field must be both useful and available at the time a prediction is made. Some BTS fields describe events that happen
+later in the flight. Using one of those fields too early would give the model information from the future, often called
+time or target leakage.
 
-BTS publishes the On-Time Performance data as a historical reporting dataset. However, some BTS columns represent events—such as gate departure and takeoff—that an airline or 
-airport operational system can observe when they occur.
+BTS is a historical reporting source, but some of its columns describe events—such as pushback and takeoff—that an
+airline or airport system could observe when they happen. `DepTime`, `TaxiOut`, and `WheelsOff` are therefore kept, but
+their use depends on the model's prediction time. `DepTime` becomes available to Model 2B after pushback. `TaxiOut` is
+not complete, and `WheelsOff` is not known, until takeoff, so they become available only to Model 2C.
 
-`DepTime`, `TaxiOut`, and `WheelsOff` are retained because they mark useful and clearly different information points.
-`DepTime` is the actual gate-out or pushback time and is eligible for Model 2B. `TaxiOut` is not complete, and `WheelsOff` 
-is not known, until takeoff; both are excluded from Models 1A, 2A, and 2B. They become eligible for Model 2C, which updates 
-the arrival-delay prediction immediately after takeoff.
+`clean_bts.ipynb` writes one 28-column file for each airport and year under `data/bts/cleaned/`. For the arrival
+scenario, `data/bts/cat_bts.py` combines the required origin-airport files into `data/bts/cleaned_JFK_YEAR.csv` without
+changing the column layout.
 
 ### Prediction-time eligibility of key BTS operational fields
 
@@ -637,7 +636,8 @@ the arrival-delay prediction immediately after takeoff.
 | `ArrDel15` | Not used | Target only | Target only | Target only |
 | Other arrival outcomes and post-arrival fields | Excluded | Excluded | Excluded | Excluded |
 
-“Dropped” means a field is unnecessary or inappropriate for this capstone design; it does not mean the field has no value in other aviation studies.
+“Dropped” means that a field is not needed or is not appropriate for this project. It may still be useful in other
+aviation studies.
 
 ### BTS columns retained for modeling
 
@@ -658,7 +658,7 @@ the arrival-delay prediction immediately after takeoff.
 | `DestState` | Two-letter state code for the destination airport. | Retained as a compact geographic field. |
 | `CRSDepTime` | Computer Reservation System scheduled departure time in local HHMM form. | Retained because it is known before departure and is used to construct the exact scheduled departure timestamp. |
 | `DepTime` | Actual gate departure time in local HHMM form. | Retained as the event-time field for Model 2B and for descriptive analysis. It is excluded from Models 1A and 2A because gate-out has not occurred when those predictions are made. BTS supplies the historical value; a deployed Model 2B would require an operational gate-out feed. |
-| `DepDelay` | Actual gate departure time minus scheduled departure time, in minutes; negative values indicate an early departure. | Retained as a Model 2B predictor because it is known once gate-out occurs. It is excluded from Models 1A and 2A. Because it overlaps the other departure-delay fields, the final Model 2B projection should avoid unnecessary duplicate representations. |
+| `DepDelay` | Actual gate departure time minus scheduled departure time, in minutes; negative values indicate an early departure. | Retained as a Model 2B predictor because it is known once gate-out occurs. It is excluded from Models 1A and 2A. Because it overlaps the other departure-delay fields, the Model 2B feature list should avoid unnecessary duplicate versions of the same information. |
 | `DepDelayMinutes` | Nonnegative departure delay in minutes; early departures are recorded as zero. | Retained as a possible Model 2B representation and to validate `DepDelay` and `DepDel15`. It is excluded from pre-pushback predictors and need not be included together with every related departure-delay field. |
 | `DepDel15` | Indicator equal to 1 when departure delay is at least 15 minutes. | Target for Model 1A. It is excluded from Model 2A but may be used as a compact post-pushback input for Model 2B because the departure outcome is known at gate-out. It is never used to predict itself in Model 1A. |
 | `DepartureDelayGroups` | Departure delay grouped into ordered 15-minute ranges. | Retained for validation, EDA, and possible Model 2B use. It is excluded before pushback and is not automatically included alongside the continuous and binary departure-delay fields. |
@@ -779,9 +779,19 @@ BTS can record details for as many as five diversion stops. Because diverted fli
 
 ## ASPM Column Selection and Dictionary
 
-The downloaded ASPM hourly file contains 18 columns. The project keeps the airport, date, hour, scheduled departures, and scheduled arrivals. Cleaning also creates `DATE`, giving the cleaned ASPM data six columns. The scheduled counts represent planned airport demand and are assumed to be accurate hourly summaries of the schedule. Historical schedule counts may include later revisions, so this is a practical project assumption.
+The downloaded ASPM hourly file contains 18 columns. The project keeps the airport, date, hour, scheduled departures,
+and scheduled arrivals. Cleaning also creates `DATE`, giving each cleaned ASPM file six columns. The scheduled counts
+describe planned airport demand. Because historical schedules can include later revisions, the project treats these
+counts as the best available summary of the schedule rather than as a perfect record of what was known at every moment.
 
-The other 13 source columns are dropped. They contain supporting calculation counts or summaries of actual airport performance, such as on-time percentages and average delays. ASPM generally publishes these operational results as part of the following day's update, so they are not available close enough to departure or arrival time for the project's predictions. Looking at the previous operating hour would not solve that publication delay.
+The other 13 source columns are removed. They are calculation fields or summaries of actual airport performance, such
+as on-time percentages and average delays. ASPM generally publishes these results in the following day's update, which
+is too late for the project's prediction times. Using the previous operating hour would not solve that publication
+delay.
+
+`clean_aspm.ipynb` writes one six-column file for each airport and year under `data/aspm/cleaned/`. For the arrival
+scenario, `data/aspm/cat_aspm.py` combines the required origin-airport files into `data/aspm/cleaned_JFK_YEAR.csv`. The
+combined file uses the same six columns.
 
 ### ASPM columns retained for modeling
 
@@ -790,23 +800,23 @@ The other 13 source columns are dropped. They contain supporting calculation cou
 | `airport` | Three-letter code for the airport represented by the hourly record. | Retained as the airport identifier and merge key. |
 | `report_date` | Calendar date associated with the hourly record. | Converted to a pandas datetime and combined with `Hour` to create the hourly timestamp. |
 | `Hour` | Local airport hour, represented by an integer from 0 through 23. | Retained to identify the hourly reporting period and construct `DATE`. |
-| `Scheduled Departures` | Number of flights scheduled to depart during the hour. | Retained as a planned measure of departure demand and airport workload. ASPM is assumed to have performed the hourly schedule roll-up that would otherwise be calculated from BTS. |
-| `Scheduled Arrivals` | Number of flights scheduled to arrive during the hour. | Retained as a planned measure of arrival demand and airport workload under the same ASPM schedule-roll-up assumption. |
-| `DATE` | Constructed hourly timestamp created by combining `report_date` and `Hour`. | Added during cleaning and used as the time key for sorting, coverage validation, and the lagged BTS merge. |
+| `Scheduled Departures` | Number of flights scheduled to depart during the hour. | Retained as a planned measure of departure demand and airport workload. ASPM has already counted the scheduled flights by hour, so the project does not need to rebuild that count from BTS. |
+| `Scheduled Arrivals` | Number of flights scheduled to arrive during the hour. | Retained as a planned measure of arrival demand and airport workload under the same hourly-count assumption. |
+| `DATE` | Constructed hourly timestamp created by combining `report_date` and `Hour`. | Added during cleaning and used for sorting, checking hourly coverage, and matching ASPM records to flights. |
 
 ### ASPM columns dropped during processing
 
 | Column | Meaning | Why it is dropped |
 |---|---|---|
-| `Departures For Metric Computation` | Number of qualifying departures used by ASPM to calculate the reported departure performance metrics. | Dropped because it is a later-published auxiliary denominator, not a planned-demand measure. `Scheduled Departures` provides the relevant schedule-based count. |
-| `Arrivals For Metric Computation` | Number of qualifying arrivals used by ASPM to calculate the reported arrival performance metrics. | Dropped because it is a later-published auxiliary denominator, not a planned-demand measure. `Scheduled Arrivals` provides the relevant schedule-based count. |
+| `Departures For Metric Computation` | Number of qualifying departures used by ASPM to calculate the reported departure performance metrics. | Dropped because it is a supporting count for later performance calculations, not a measure of planned demand. `Scheduled Departures` provides the schedule count needed here. |
+| `Arrivals For Metric Computation` | Number of qualifying arrivals used by ASPM to calculate the reported arrival performance metrics. | Dropped because it is a supporting count for later performance calculations, not a measure of planned demand. `Scheduled Arrivals` provides the schedule count needed here. |
 | `% On-Time Gate Departures` | Percentage of qualifying flights that departed the gate on time during the hour. | Dropped primarily because this realized hourly result is not published near enough to prediction time. It is also an aggregate departure-delay outcome that closely parallels `DepDel15`. |
 | `% On-Time Airport Departures` | Percentage of qualifying flights whose airport departure was on time during the hour. | Dropped primarily because it is not available near real time. It also duplicates related departure-performance information and summarizes an outcome that has already occurred. |
 | `% On-Time Gate Arrivals` | Percentage of qualifying flights that arrived at the gate on time during the hour. | Dropped primarily because it is not available near real time. It is also an aggregate arrival-delay outcome that closely parallels `ArrDel15`. |
-| `Average Gate Departure Delay` | Average difference between scheduled and actual gate departure time for qualifying flights in the hour. | Dropped primarily because ASPM publishes it too late for the intended prediction. It is also a target-proximate departure outcome that overlaps other operating measures. |
-| `Average Taxi Out Time` | Average number of minutes from gate departure to wheels-off for the flights represented in the hour. | Dropped because it is a realized operating measure that ASPM publishes too late for the intended prediction times. Retrospective analysis of this field is outside the project scope. |
+| `Average Gate Departure Delay` | Average difference between scheduled and actual gate departure time for qualifying flights in the hour. | Dropped because ASPM publishes it too late for the intended prediction. It also summarizes a departure-delay outcome that has already occurred. |
+| `Average Taxi Out Time` | Average number of minutes from gate departure to wheels-off for the flights represented in the hour. | Dropped because it is an actual operating result that ASPM publishes too late for the intended prediction times. Analysis after the flight is outside the project scope. |
 | `Average Taxi Out Delay` | Average taxi-out delay beyond the expected or unimpeded taxi-out time. | Dropped because it is a realized congestion measure that ASPM publishes too late for the intended prediction times. |
-| `Average Airport Departure Delay` | Average airport departure delay for qualifying flights in the hour, including delay accumulated before takeoff. | Dropped primarily because ASPM publishes it too late for the intended prediction. It is also a composite departure outcome that overlaps gate and taxi-out performance. |
+| `Average Airport Departure Delay` | Average airport departure delay for qualifying flights in the hour, including delay accumulated before takeoff. | Dropped because ASPM publishes it too late for the intended prediction. It also combines gate and taxi-out results that have already occurred. |
 | `Average Airborne Delay` | Average reported airborne delay for the flights represented in the hour. | Dropped because it is a realized operating measure that ASPM publishes too late for the intended prediction times. |
 | `Average Taxi In Delay` | Average taxi-in delay for arriving flights represented in the hour. | Dropped because it is a realized congestion measure that ASPM publishes too late for the intended prediction times. |
 | `Average Block Delay` | Average difference between scheduled and actual gate-to-gate elapsed time for qualifying flights. | Dropped primarily because this completed-flight result is not available near prediction time. It also combines several operating phases and is closely related to the arrival outcome. |
@@ -831,17 +841,24 @@ offset is positive because that record describes planned demand after the flight
 
 ## NOAA Column Selection and Dictionary
 
-The NOAA data describes weather observed near JFK. Only hourly fields that are useful for the delay models are kept.
-Daily and monthly summaries are dropped because they do not describe conditions at a specific prediction time and may
-include weather that occurred later.
+The NOAA data describes weather at the airport where a flight departs: JFK for Model 1A and the flight's origin airport
+for Models 2A, 2B, and 2C. Only hourly fields that are useful for delay prediction are kept. Daily and monthly summaries
+are removed because they do not describe conditions at a specific time and may include weather observed later.
 
-Each model uses the most recent NOAA observation available by its prediction time. Later observations are excluded to prevent data leakage. Missing weather values must also be handled with a past-only method so that an earlier record is not filled using future weather.
+The merge uses the latest NOAA observation available at or before scheduled departure, as long as it is no more than 90
+minutes old. Later reports are not added to Models 2B and 2C. When a weather value is filled during cleaning, it may use
+only an earlier observation within the same 90-minute limit; future weather is never used.
+
+`clean_noaa.ipynb` writes an 18-column file for each airport and year under `data/noaa/cleaned/`. For the arrival
+scenario, `data/noaa/cat_noaa.py` combines the origin-airport files and adds `AIRPORT`, producing the 19-column
+`data/noaa/cleaned_JFK_YEAR.csv` file.
 
 ### NOAA columns retained for modeling
 
 | Column | Plain-English description | Why it is retained |
 |---|---|---|
 | `DATE` | Date and time of the weather observation. | Used to match each flight with weather already observed by the prediction time. |
+| `AIRPORT` | Airport code linked to the weather station. | Added only to the consolidated arrival input so each flight can be matched to weather at its origin. |
 | `HourlyDewPointTemperature` | Temperature at which moisture begins to condense. | Helps describe how much moisture is in the air. |
 | `HourlyDryBulbTemperature` | Air temperature reported by the station. | Provides the main temperature measurement. |
 | `HourlyPrecipitation` | Amount of precipitation reported for the observation period. | Measures the amount of rain or melted precipitation. Trace amounts are kept as a small positive value. |
@@ -876,21 +893,29 @@ Each model uses the most recent NOAA observation available by its prediction tim
 
 ### NOAA names after merge
 
-During the merge, `DATE` becomes `NOAA_DATE` so it is not confused with the flight timestamp. The weather feature names remain unchanged. `NOAA_AGE_MINUTES` records how old the matched weather observation is at the relevant flight time.
+During the merge, `DATE` becomes `NOAA_DATE` so it is not confused with the flight timestamp. For the arrival scenario,
+`AIRPORT` becomes `NOAA_AIRPORT` and remains in the merged file as a field for checking the join. The departure file does
+not need that field because every weather match is for JFK. The other weather names remain unchanged, and
+`NOAA_AGE_MINUTES` records how old the observation is at scheduled departure.
 
 # Appendix B
 
-This appendix documents the joined model-assembly columns and the candidate engineered features derived from them.
+This appendix explains the columns saved after the BTS, ASPM, and NOAA joins and the fixed features calculated from
+them. It covers both the departure and arrival scenarios and shows when fields are available to each model.
 
-## Joined Model-Assembly Column Dictionary
+## Joined Data Column Dictionary
 
-Inside `model_1a.ipynb`, the joined working dataframe contains one row per completed, non-diverted flight departing JFK.
-Before feature engineering and final projection, it has 71 columns: 28 BTS flight fields, 24 ASPM planned-demand and
-join-audit fields, and 19 NOAA weather and join-audit fields.
+`data/merged/JFK_YEAR_departures.csv` contains one row for each eligible completed flight leaving JFK. It has 71 columns:
+28 BTS flight fields, 24 ASPM planned-demand and join-checking fields, and 19 NOAA weather and join-checking fields.
+`data/merged/JFK_YEAR_arrivals.csv` contains one row for each eligible completed flight headed to JFK. It has the same
+columns plus `NOAA_AIRPORT`, for a total of 72.
 
-This in-memory dataframe is intentionally broader than the saved model dataset. It contains targets, descriptive
-outcomes, source timestamps, and operational events from different points in time. A column appearing here does not mean
-it is eligible for every model. The final projection keeps only information available at the stated prediction time.
+The merged files intentionally keep targets, descriptive outcomes, source timestamps, and operating events from
+different points in the flight. They are broad audit and feature-building files, so a column's presence does not mean
+that every model may use it. `feature_departures.ipynb` and `feature_arrivals.ipynb` add fixed calculated fields and write
+the 106-column departure and 116-column arrival files under `data/features/`. Each model notebook then applies the
+feature list allowed at its prediction time. The experiment notebooks read these shared feature files directly rather
+than creating another layer of model-specific CSV files.
 
 ### Joined BTS flight columns
 
@@ -911,7 +936,7 @@ it is eligible for every model. The final projection keeps only information avai
 | `DestState` | Two-letter state code for the destination. | Compact destination-location field. |
 | `CRSDepTime` | Scheduled departure time in local HHMM form. | Known before departure and used to construct the scheduled timestamp. |
 | `DepTime` | Actual gate departure or pushback time in local HHMM form. | Available only after pushback; eligible for Model 2B, not Models 1A or 2A. |
-| `DepDelay` | Actual gate departure minus scheduled departure, in minutes. | Model 1A target information and a possible Model 2B predictor; unavailable before pushback. |
+| `DepDelay` | Actual gate departure minus scheduled departure, in minutes. | Completed departure outcome used for validation and a possible Model 2B predictor; unavailable before pushback. |
 | `DepDelayMinutes` | Nonnegative departure delay in minutes. | Outcome field used for validation and possible Model 2B input. |
 | `DepDel15` | Indicates a departure delay of at least 15 minutes. | Target for Model 1A and possible post-pushback input for Model 2B. |
 | `DepartureDelayGroups` | Departure delay grouped into 15-minute ranges. | Outcome field for EDA and validation; unavailable before pushback. |
@@ -927,9 +952,10 @@ it is eligible for every model. The final projection keeps only information avai
 
 ### Joined ASPM planned-demand columns
 
-ASPM supplies planned schedule counts for the previous, current, and next clock hours around scheduled departure. These
-are schedule values known ahead of time, not future operating results. The offset is calculated as the ASPM timestamp
-minus the flight's scheduled departure timestamp.
+ASPM supplies planned schedule counts for the previous, current, and next clock hours around scheduled departure. For a
+departure flight these records describe JFK; for an arrival flight they describe that flight's origin. They are schedule
+values known ahead of time, not future operating results. Each offset is the ASPM timestamp minus the scheduled departure
+timestamp.
 
 | Column | Description |
 |---|---|
@@ -963,47 +989,53 @@ to the next annual file. These are documented year-boundary gaps, not zero-traff
 
 ### Joined NOAA weather columns
 
-NOAA supplies the latest weather observation at or before scheduled departure. The observation timestamp and age remain
-in the working dataframe so future or stale matches can be detected.
+NOAA supplies the latest origin-airport weather observation at or before scheduled departure, within the 90-minute
+matching limit. The observation timestamp and age remain in the merged files so future or overly old matches can be
+detected.
 
 | Column | Description | Use and availability |
 |---|---|---|
-| `NOAA_DATE` | Timestamp of the matched NOAA observation. | Must be at or before the relevant prediction time. |
+| `NOAA_AIRPORT` | Airport code linked to the matched weather station. | Present only in the arrival file; confirms that weather came from the flight's origin. |
+| `NOAA_DATE` | Timestamp of the matched NOAA observation. | Must be at or before scheduled departure. |
 | `HourlyDewPointTemperature` | Dew-point temperature reported by the station. | Describes moisture in the air. |
 | `HourlyDryBulbTemperature` | Air temperature reported by the station. | Main temperature measurement. |
 | `HourlyPrecipitation` | Precipitation amount for the observation period. | Continuous precipitation measurement; trace amounts use a small positive value. |
 | `HourlyRelativeHumidity` | Relative humidity percentage. | Describes atmospheric moisture. |
 | `HourlyVisibility` | Horizontal visibility reported by the station. | Measures visibility conditions that may affect operations. |
 | `HourlyWindSpeed` | Reported wind speed. | Measures wind strength. |
-| `Rain` | Indicates that rain was reported. | Binary weather-condition feature. |
-| `Drizzle` | Indicates that drizzle was reported. | Binary weather-condition feature. |
-| `Snow` | Indicates that snow was reported. | Binary weather-condition feature. |
-| `Fog` | Indicates that fog was reported. | Binary low-visibility feature. |
-| `Mist` | Indicates that mist was reported. | Binary visibility-condition feature. |
-| `Thunderstorm` | Indicates that a thunderstorm was reported. | Binary severe-weather feature. |
-| `FreezingPrecip` | Indicates that the report contains a freezing-condition code. | Binary freezing-weather feature. |
-| `Showers` | Indicates that showers were reported. | Binary weather-condition feature. |
-| `PrecipOccurred` | Indicates precipitation based on a measured amount or a rain, snow, or drizzle report. | Combined precipitation feature. |
-| `WindX` | East-west wind component calculated from speed and direction. | Model-friendly representation of wind direction and strength. |
+| `Rain` | Indicates that rain was reported. | 0/1 indicator for rain. |
+| `Drizzle` | Indicates that drizzle was reported. | 0/1 indicator for drizzle. |
+| `Snow` | Indicates that snow was reported. | 0/1 indicator for snow. |
+| `Fog` | Indicates that fog was reported. | 0/1 indicator for fog and poor visibility. |
+| `Mist` | Indicates that mist was reported. | 0/1 indicator for mist and reduced visibility. |
+| `Thunderstorm` | Indicates that a thunderstorm was reported. | 0/1 indicator for thunderstorms. |
+| `FreezingPrecip` | Indicates that the report contains a freezing-condition code. | 0/1 indicator for freezing precipitation. |
+| `Showers` | Indicates that showers were reported. | 0/1 indicator for showers. |
+| `PrecipOccurred` | Indicates precipitation based on a measured amount or a rain, snow, or drizzle report. | One 0/1 indicator combining several signs of precipitation. |
+| `WindX` | East-west wind component calculated from speed and direction. | Numeric representation of the east-west wind direction and strength. |
 | `WindY` | North-south wind component calculated from speed and direction. | Used with `WindX` to represent the wind vector. |
 | `NOAA_AGE_MINUTES` | Scheduled departure time minus the NOAA observation time, in minutes. | Must be nonnegative and within the allowed weather-match tolerance. |
 
 ## Feature Engineering
 
-The initial feature set is intentionally compact and interpretable. It combines schedule, calendar, route, planned airport
-demand, and weather information while preserving one row per flight. This design follows the three primary references:
-Snell combines BTS flight records with hourly NOAA weather and emphasizes schedule, airline, route, traffic, and weather
-variables; Zoutendijk and Mitici use airline, airport, distance, scheduled traffic, weather, and cyclical time encodings;
-and Pineda-Jaramillo et al. combine flight, airport, geographic, and weather data and analyze the features that influence
-the resulting predictions.
+The feature notebooks add useful schedule, calendar, route, planned-traffic, and weather measures while keeping one row
+per flight. `feature_departures.ipynb` adds 35 common pre-pushback fields to the departure merge. The same 35 fields are
+added to the arrival merge, followed by nine fields based on actual pushback and takeoff information. This produces
+`data/features/JFK_YEAR_departures.csv` with 106 columns and `data/features/JFK_YEAR_arrivals.csv` with 116 columns.
 
-The same pre-pushback feature block is intended for Models 1A and 2A and is carried forward into Models 2B and 2C. Model
-2B adds information available once pushback has occurred, and Model 2C adds taxi-out and takeoff information. In the
-table below, **Pre** means all four models, while **2B and 2C** marks information first available at pushback. Raw fields
-such as `Reporting_Airline`, `Origin`, `Dest`, `CRSElapsedTime`, `Distance`, the selected NOAA measurements, `WindX`,
-`WindY`, and `NOAA_AGE_MINUTES` remain candidate inputs even though they are not repeated as engineered features.
+The feature choices are supported by the three primary references. Snell combines flight records with hourly weather
+and emphasizes schedule, airline, route, traffic, and weather. Zoutendijk and Mitici use airline, airport, distance,
+scheduled traffic, weather, and time-cycle features. Pineda-Jaramillo et al. combine flight, airport, geographic, and
+weather data and examine which fields contribute to predictions.
 
-### Initial core engineered features
+The common pre-pushback fields are available to Models 1A and 2A and remain available to Models 2B and 2C. Model 2B adds
+information known after pushback, and Model 2C adds taxi-out and takeoff information. In the table below, **Pre** means
+all four models, **2B and 2C** means first available after pushback, and **2C** means first available after takeoff. Raw
+fields such as `Reporting_Airline`, `Origin`, `Dest`, `CRSElapsedTime`, `Distance`, the selected NOAA measurements,
+`WindX`, `WindY`, and `NOAA_AGE_MINUTES` remain possible inputs even though they are not repeated in the engineered
+feature table.
+
+### Engineered feature dictionary
 
 | Feature | Construction and description | Availability | Justification and evidence |
 |---|---|---|---|
@@ -1014,7 +1046,7 @@ such as `Reporting_Airline`, `Origin`, `Dest`, `CRSElapsedTime`, `Distance`, the
 | `SCHED_ARR_MINUTE_OF_DAY` | Convert `CRSArrTime` from destination-local HHMM to minutes after local midnight. | Pre | Captures the scheduled arrival period without implying that origin and destination clocks share a time zone. It must not be subtracted from scheduled departure time; `CRSElapsedTime` is the valid duration field. |
 | `SCHED_ARR_TIME_SIN` | `sin(2π * SCHED_ARR_MINUTE_OF_DAY / 1440)`. | Pre | Preserves the daily periodicity of the destination-local scheduled arrival time. |
 | `SCHED_ARR_TIME_COS` | `cos(2π * SCHED_ARR_MINUTE_OF_DAY / 1440)`. | Pre | Completes the cyclical representation of scheduled arrival time. |
-| `TIME_OF_DAY` | Interpretable category derived from scheduled departure time, with fixed morning, afternoon, evening, and overnight bands documented before modeling. | Pre | Snell discusses time-of-day slots, Pineda uses a departure-period category, and Zoutendijk and Mitici select time of day. This field is especially useful for EDA; models may use it instead of, or compare it with, the cyclical pair to limit redundancy. |
+| `TIME_OF_DAY` | Interpretable category derived from scheduled departure time, with fixed morning, afternoon, evening, and overnight bands documented before modeling. | Pre | Snell discusses time-of-day slots, Pineda uses a departure-period category, and Zoutendijk and Mitici select time of day. This field is especially useful for EDA; a model may use it instead of the sine and cosine pair to avoid repeating the same information. |
 | `IS_WEEKEND` | 1 when `DayOfWeek` is 6 or 7; otherwise 0. | Pre | Provides a simple weekly schedule distinction. Snell discusses weekend flags, while all three references include or discuss weekday effects. |
 | `DAY_OF_WEEK_SIN` | `sin(2π * (DayOfWeek - 1) / 7)`. | Pre | Preserves adjacency between Sunday and Monday. Zoutendijk and Mitici explicitly apply trigonometric encoding to day of week. |
 | `DAY_OF_WEEK_COS` | `cos(2π * (DayOfWeek - 1) / 7)`. | Pre | Completes the weekly cyclical representation. |
@@ -1023,80 +1055,81 @@ such as `Reporting_Airline`, `Origin`, `Dest`, `CRSElapsedTime`, `Distance`, the
 | `DAY_OF_YEAR_COS` | `cos(2π * (DAY_OF_YEAR - 1) / days_in_year)`. | Pre | Completes the annual cyclical representation. |
 | `MONTH_SIN` | `sin(2π * (Month - 1) / 12)`. | Pre | Represents month as a cycle. Zoutendijk and Mitici explicitly use month sine and cosine, and Pineda reports month effects. |
 | `MONTH_COS` | `cos(2π * (Month - 1) / 12)`. | Pre | Completes the monthly cyclical representation. |
-| `YEAR_PERIOD` | Treat 2019, 2023, and 2024 as categories rather than as a continuous numeric trend. | Pre | Separates the pre-pandemic baseline from the two post-pandemic periods without assuming a linear yearly effect. Zoutendijk and Mitici use year, but this project's discontinuous coverage makes a period indicator more defensible. |
+| `YEAR_PERIOD` | Treat 2019, 2023, and 2024 as categories rather than as a continuous numeric trend. | Pre | Separates the pre-pandemic baseline from the two post-pandemic periods without assuming a steady year-to-year change. Zoutendijk and Mitici use year, but a period category better fits this project's nonconsecutive years. |
 | `ROUTE` | Concatenate `Origin` and `Dest` as an origin-destination category. | Pre | Preserves the flight-leg identity highlighted by Snell and the airport/destination effects emphasized by Zoutendijk and Mitici and Pineda. |
 | `AIRLINE_FLIGHT_ID` | Concatenate `Reporting_Airline` and `Flight_Number_Reporting_Airline`; treat the result as categorical. | Pre | Avoids treating a flight number as a continuous quantity and distinguishes identical numbers used by different airlines. Snell and Pineda both retain scheduled flight and airline identity. |
 | `AIRLINE_DEST` | Concatenate `Reporting_Airline` and `Dest` as a categorical interaction. | Pre | Provides one limited, interpretable service-pattern interaction instead of a large arbitrary interaction set. Airline and destination are supported individually across the primary references. |
 | `LOG_DISTANCE` | `log1p(Distance)`. | Pre | Retains route-length ordering while reducing right skew. Distance is selected or discussed by all three primary references. The raw distance should remain available for tree models and interpretation. |
-| `SCHEDULED_SPEED_PROXY` | `60 * Distance / CRSElapsedTime`, when elapsed time is positive. | Pre | Summarizes the relationship between route length and scheduled gate-to-gate duration. It is schedule-derived and time-safe, but should be checked for redundancy with its two source fields before final selection. |
+| `SCHEDULED_SPEED_PROXY` | `60 * Distance / CRSElapsedTime`, when elapsed time is positive. | Pre | Summarizes the relationship between route length and scheduled gate-to-gate duration. It uses only schedule information available before pushback, but should be compared with its two source fields to avoid repeating the same information. |
 | `ASPM_PREVIOUS_TOTAL_SCHEDULED_TRAFFIC` | Previous-hour scheduled departures plus previous-hour scheduled arrivals. | Pre | Summarizes planned airport workload immediately before the flight. Snell supports airport congestion/traffic measures, and Zoutendijk and Mitici use scheduled-flight counts near the flight time. |
 | `ASPM_CURRENT_TOTAL_SCHEDULED_TRAFFIC` | Current-hour scheduled departures plus current-hour scheduled arrivals. | Pre | Measures planned workload during the scheduled departure hour. |
 | `ASPM_NEXT_TOTAL_SCHEDULED_TRAFFIC` | Next-hour scheduled departures plus next-hour scheduled arrivals. | Pre | Measures planned workload just after the scheduled departure hour. These are schedule counts known ahead of time, not future realized outcomes. |
-| `ASPM_THREE_HOUR_SCHEDULED_DEPARTURES` | Sum scheduled departures across the previous, current, and next hours. | Pre | Approximates the local two-hour-neighborhood scheduled-flight feature used by Zoutendijk and Mitici while matching the available ASPM clock-hour records. |
+| `ASPM_THREE_HOUR_SCHEDULED_DEPARTURES` | Sum scheduled departures across the previous, current, and next hours. | Pre | Provides a three-hour view of planned departure demand, similar to the nearby scheduled-flight window used by Zoutendijk and Mitici. |
 | `ASPM_THREE_HOUR_SCHEDULED_ARRIVALS` | Sum scheduled arrivals across the previous, current, and next hours. | Pre | Separates planned arrival demand from departure demand because each can load airport resources differently. |
 | `ASPM_THREE_HOUR_TOTAL_SCHEDULED_TRAFFIC` | Sum `ASPM_THREE_HOUR_SCHEDULED_DEPARTURES` and `ASPM_THREE_HOUR_SCHEDULED_ARRIVALS`. | Pre | Provides the main compact congestion feature supported by Snell's traffic-volume discussion and Zoutendijk and Mitici's scheduled-flight window. |
 | `ASPM_CURRENT_MINUS_PREVIOUS_TRAFFIC` | Current-hour total scheduled traffic minus previous-hour total. | Pre | Indicates whether planned airport workload is building or easing near departure without using realized performance. |
-| `ASPM_NEXT_MINUS_CURRENT_TRAFFIC` | Next-hour total scheduled traffic minus current-hour total. | Pre | Adds the forward planned-demand slope using only schedule information already known at prediction time. |
+| `ASPM_NEXT_MINUS_CURRENT_TRAFFIC` | Next-hour total scheduled traffic minus current-hour total. | Pre | Shows whether planned demand is expected to rise or fall in the next hour, using schedule information already known at prediction time. |
 | `ASPM_MAX_HOURLY_TRAFFIC` | Maximum of the previous-, current-, and next-hour total scheduled traffic. | Pre | Captures the local planned peak without imposing a learned high-traffic threshold. |
 | `TEMP_DEWPOINT_SPREAD` | `HourlyDryBulbTemperature - HourlyDewPointTemperature`. | Pre | Provides a compact moisture-related measure while retaining the underlying observations. Zoutendijk and Mitici select temperature/dew point features, and Snell and Pineda support weather integration. |
-| `LOG_PRECIPITATION` | `log1p(max(HourlyPrecipitation, 0))`. | Pre | Reduces precipitation skew while retaining trace and heavy precipitation distinctions. Snell and Pineda include precipitation-related weather information. |
+| `LOG_PRECIPITATION` | `log1p(max(HourlyPrecipitation, 0))`. | Pre | Keeps the difference between trace and heavy precipitation while reducing the influence of a small number of very large values. Snell and Pineda include precipitation-related weather information. |
 | `WEATHER_CONDITION_COUNT` | Sum `Rain`, `Drizzle`, `Snow`, `Fog`, `Mist`, `Thunderstorm`, `FreezingPrecip`, and `Showers`. | Pre | Gives an interpretable measure of how many adverse condition types are reported without inventing severity weights. |
 | `ADVERSE_WEATHER` | 1 when any of the eight weather-condition indicators is 1; otherwise 0. | Pre | Supplies a compact general-weather flag for linear baselines while the component indicators remain available. The primary references consistently support weather as a predictor. |
 | `ACTUAL_DEP_MINUTE_OF_DAY` | Convert `DepTime` from HHMM to minutes after local midnight. | 2B and 2C | Represents the known gate-out time once pushback occurs. Snell directly compares arrival-delay models without and with actual departure information. |
 | `ACTUAL_DEP_TIME_SIN` | `sin(2π * ACTUAL_DEP_MINUTE_OF_DAY / 1440)`. | 2B and 2C | Encodes actual pushback time without a midnight discontinuity. |
 | `ACTUAL_DEP_TIME_COS` | `cos(2π * ACTUAL_DEP_MINUTE_OF_DAY / 1440)`. | 2B and 2C | Completes the cyclical representation of actual pushback time. |
 | `DEPARTED_EARLY` | 1 when signed `DepDelay` is less than 0; otherwise 0. | 2B and 2C | Preserves the distinction between early and non-early departures if a nonnegative delay transform is tested. |
-| `LOG_DEP_DELAY_MINUTES` | `log1p(DepDelayMinutes)`. | 2B and 2C | Reduces the influence of very long departure delays while retaining their ordering. It should be compared with signed `DepDelay` rather than automatically included with every redundant departure-delay field. |
+| `LOG_DEP_DELAY_MINUTES` | `log1p(DepDelayMinutes)`. | 2B and 2C | Reduces the influence of very long departure delays while keeping their order. It should be compared with signed `DepDelay` rather than automatically included with every related departure-delay field. |
 | `ACTUAL_TAKEOFF_MINUTE_OF_DAY` | Convert `WheelsOff` from HHMM to minutes after local midnight. Treat `2400` as minute zero; invalid or missing values remain missing. | 2C | Represents the known takeoff time once the aircraft is airborne without treating HHMM as an ordinary number. |
 | `ACTUAL_TAKEOFF_TIME_SIN` | `sin(2π * ACTUAL_TAKEOFF_MINUTE_OF_DAY / 1440)`. | 2C | Encodes actual takeoff time without a midnight discontinuity. |
 | `ACTUAL_TAKEOFF_TIME_COS` | `cos(2π * ACTUAL_TAKEOFF_MINUTE_OF_DAY / 1440)`. | 2C | Completes the cyclical representation of actual takeoff time. |
-| `LOG_TAXI_OUT_MINUTES` | `log1p(TaxiOut)` when `TaxiOut` is nonnegative; invalid or missing values remain missing. | 2C | Reduces the influence of unusually long taxi-out times for linear models while retaining raw `TaxiOut` for tree models and interpretation. |
+| `LOG_TAXI_OUT_MINUTES` | `log1p(TaxiOut)` when `TaxiOut` is nonnegative; invalid or missing values remain missing. | 2C | Reduces the influence of unusually long taxi-out times for linear models. The original `TaxiOut` value remains available for tree models and interpretation. |
 
-### Feature selection and leakage rules
+### Feature selection and timing rules
 
 Use the following rules when selecting features and preparing data:
 
-- Start with the fixed baseline predictors. Add engineered features only when they have a clear purpose and improve the
-  model. Avoid keeping several features that express the same information.
-- Choose features separately for each model type. Logistic regression may benefit from cyclical time encodings and
-  summarized weather measures. Tree models may work well with the original values and may not need every derived
-  version.
-- Learn every data-preparation decision from the training data only. This rule applies to missing-value imputation,
-  scaling, categorical encoding, feature selection, class balancing, and the selection of numeric thresholds. Do not use
-  development or test data to make these decisions.
-- Do not create flags such as `LOW_VISIBILITY`, `HIGH_WIND`, `ASPM_HIGH_TRAFFIC`, or source-staleness flags until their
-  cutoffs have a clear operational meaning or have been selected using training data.
-- Defer large sets of interaction features and historical delay-rate features until after the initial models are
-  established. If historical rates are added, use only earlier completed flights. Exclude the current flight, never use
-  development or test outcomes, and smooth rates for groups with few observations.
-- For Model 2B, begin with a small update such as signed `DepDelay`. Then test whether a larger departure-information set
-  improves the result. `DepTime`, `DepDelay`, `DepDelayMinutes`, `DepDel15`, and `DepartureDelayGroups` describe much of
-  the same event, so they should not all be included automatically. `TaxiOut` and `WheelsOff` are available only to
-  Model 2C and must remain excluded from Models 1A, 2A, and 2B.
+- Start with the fixed baseline fields. Add calculated features only when they have a clear purpose and improve the
+  model. Avoid keeping several fields that express the same information.
+- Choose features separately for each model type. Logistic regression may benefit from sine and cosine time features
+  that preserve daily or weekly cycles, along with summarized weather measures. Tree models may work well with the
+  original values and may not need every calculated version.
+- Learn every data-preparation choice from the training data only. This includes filling missing values, scaling numeric
+  values, converting categories, selecting features, balancing the two outcome classes, and choosing numeric cutoffs.
+  Development and test data are used only to evaluate the finished choice.
+- Do not create flags such as `LOW_VISIBILITY`, `HIGH_WIND`, `ASPM_HIGH_TRAFFIC`, or flags based on source-record age
+  until their cutoffs have a clear operational meaning or have been selected using training data.
+- Add large sets of interaction features or historical delay-rate features only through a documented follow-up
+  experiment. If historical rates are added, calculate them from earlier completed flights only. Exclude the flight
+  being predicted, never use development or test outcomes, and reduce unstable rates for groups with few observations.
+- For Model 2B, begin with a small update such as `DepDelay`, where negative values mean an early departure and positive
+  values mean a late departure. Then test whether a larger departure-information set improves the result. `DepTime`,
+  `DepDelay`, `DepDelayMinutes`, `DepDel15`, and `DepartureDelayGroups` describe much of the same event, so they should
+  not all be included automatically. `TaxiOut` and `WheelsOff` are available only to Model 2C and must remain excluded
+  from Models 1A, 2A, and 2B.
 - For Model 2C, retain raw `TaxiOut` and `WheelsOff` and compare them with the derived takeoff-time encodings and
   `LOG_TAXI_OUT_MINUTES`. Do not automatically include every raw and transformed representation when they express the
   same information. A `WheelsOff` value of `2400` maps to minute zero for the cyclical time representation; the feature
   does not imply a same-day takeoff date.
 - Model 1A uses flights with `Origin` equal to JFK. Models 2A, 2B, and 2C must instead use inbound flights with `Dest`
-  equal to JFK. Their ASPM and NOAA data must describe each flight's origin and must have been available by that model's
+  equal to JFK. Their ASPM and NOAA data must describe each flight's origin and must be available by that model's
   prediction time.
 - Do not substitute JFK outbound data for the origin data required by the arrival models. Do not use destination weather
   observed at landing in a pre-pushback model. Destination weather is allowed only if it came from a forecast or
   observation that was available by the prediction cutoff.
-- Keep source timestamps such as `FlightDate`, `DATE`, ASPM lookup and report dates, and `NOAA_DATE` for auditing the
-  joins. Do not use them directly as model predictors.
-- Keep the nine missing next-hour ASPM matches at annual file boundaries as missing unless they can be recovered from the
+- Keep source timestamps such as `FlightDate`, `DATE`, ASPM lookup and report dates, and `NOAA_DATE` so the joins can be
+  checked. Do not use these timestamps directly as model predictors.
+- Keep missing next-hour ASPM matches at annual file boundaries as missing unless they can be recovered from the
   following year's planned schedule file. Do not replace them with zero or copy values from the current hour.
 - Keep `Tail_Number` for auditing only. Do not add aircraft rotation, previous-flight chain, turnaround, tail-sequence,
   or network-propagation features.
 
 # Appendix C
 
-This appendix is the experiment registry for Models 1A, 2A, 2B, and 2C. It includes every conventional classifier
-family directly evaluated in the attached reference papers, plus the multi-class and probabilistic models that can be
-adapted to this project. Models mentioned only in a paper's related-work survey are not automatically included; doing
-so would add methods that the paper itself did not test and that may require unavailable graph, aircraft-rotation, or
-high-frequency operational data.
+This appendix is the experiment registry for the project's four core models: 1A, 2A, 2B, and 2C. Every experiment
+predicts the same type of outcome—whether a flight will be at least 15 minutes late. The registry includes the
+conventional classifier families directly evaluated in the attached reference papers. Models mentioned only in a
+paper's related-work survey are not automatically included because the paper did not test them and they may require
+data this project does not collect.
 
 The registry deliberately screens the broad classifier set on Model 1A before transferring the core finalists to all
 three arrival prediction times. This avoids an expensive and difficult-to-interpret Cartesian product of every
@@ -1138,12 +1171,12 @@ feature set, or prediction time rather than to a different data split.
 
 ## Primary binary-classification experiments
 
-Phase I rebuilds the two existing baselines under the common protocol and screens all conventional classifier families
-directly evaluated by Snell, AlBassam, or Pineda-Jaramillo et al. Phase II carries the project's four core classifier
+Stage I rebuilds the two existing baselines under the common protocol and screens all conventional classifier families
+directly evaluated by Snell, AlBassam, or Pineda-Jaramillo et al. Stage II carries the project's four core classifier
 families through every arrival model. The descriptions identify the principal change from the preceding experiment;
 all rows retain the timing and leakage rules above.
 
-| Phase | Model | Classifier | Experiment | Planned notebook | Summary | Description |
+| Stage | Model | Classifier | Experiment | Planned notebook | Summary | Description |
 |---|---|---|---:|---|---|---|
 | I | 1A | Logistic regression | 01 | `logistic_regression_1a_01.ipynb` | Raw linear baseline | Rebuild the original schedule, airline, route, planned-traffic, and weather baseline with regularization, scaling, and the time split. |
 | I | 1A | Logistic regression | 02 | `logistic_regression_1a_02.ipynb` | Compact engineered linear model | Replace redundant HHMM and calendar representations with selected cyclical, congestion, route, and weather features; tune penalty and class weight. |
@@ -1178,49 +1211,21 @@ all rows retain the timing and leakage rules above.
 | II | 2B | CatBoost | 01 | `catboost_2b_01.ipynb` | Boosted arrival model after pushback | Add signed `DepDelay` to the unchanged 2A base and measure the value of pushback information. |
 | II | 2C | CatBoost | 01 | `catboost_2c_01.ipynb` | Boosted arrival model after takeoff | Add taxi-out and takeoff information to the unchanged 2B base and measure the value of waiting until airborne. |
 
-After Phase I, promote any non-core classifier whose 2019 forward-validation average precision is practically better
+After Stage I, promote any non-core classifier whose 2019 forward-validation average precision is practically better
 than the best core classifier, or whose recall/calibration/compute trade-off is materially preferable. Promotion means
 creating the corresponding 2A, 2B, and 2C notebooks; it does not mean choosing a winner from the 2019 test score alone.
-
-## Secondary multi-class and probabilistic experiments
-
-The capstone's primary deliverable remains the binary 15-minute classification task. The following experiments preserve
-models directly evaluated in the reference papers but change the target to delay groups, signed delay minutes, or a
-full predictive distribution. They are therefore later extensions and must not be mixed into the primary classifier
-leaderboard. Point regressors may be thresholded at 15 minutes for a diagnostic comparison, but that thresholded value
-is not a calibrated probability unless a valid predictive distribution or calibration procedure supplies one.
-
-| Priority | Model | Method | Experiment | Planned notebook | Target and purpose |
-|---|---|---|---:|---|---|
-| III | 1A | Multi-class random forest | 01 | `random_forest_multiclass_1a_01.ipynb` | Predict `DepartureDelayGroups`; report macro-F1, weighted-F1, ordinal error, and the binary `DepDel15` collapse for comparison with Li and Chen. |
-| III | 2A | Multi-class random forest | 01 | `random_forest_multiclass_2a_01.ipynb` | Predict `ArrivalDelayGroups` before pushback using only the 2A manifest. |
-| III | 2B | Multi-class random forest | 01 | `random_forest_multiclass_2b_01.ipynb` | Add signed `DepDelay` to the 2A multi-class experiment and assess whether neighboring delay-group errors decrease. |
-| III | 2C | Multi-class random forest | 01 | `random_forest_multiclass_2c_01.ipynb` | Add taxi-out and takeoff information and compare all arrival horizons on identical rows. |
-| IV | 1A | Additive/gradient-boosting regressor | 01 | `additive_regression_1a_01.ipynb` | Predict signed `DepDelay` as the scikit-learn analogue of Snell's Weka AdditiveRegression baseline. |
-| IV | 1A | Bagging regressor | 01 | `bagging_regression_1a_01.ipynb` | Predict signed `DepDelay` with bootstrapped regression trees and compare with the classification bagging experiment. |
-| IV | 1A | Pruned decision-tree regressor | 01 | `pruned_tree_regression_1a_01.ipynb` | Predict signed `DepDelay` as a practical RepTree-regression analogue using cost-complexity pruning. |
-| IV | 1A | Random-forest regressor | 01 | `random_forest_regression_1a_01.ipynb` | Predict signed `DepDelay`; evaluate MAE/RMSE and form an empirical tree-ensemble distribution for probabilistic diagnostics. |
-| IV | 1A | Neural-network regressor | 01 | `neural_network_regression_1a_01.ipynb` | Predict signed `DepDelay` with a small regularized network, covering the regression neural models evaluated by Snell and Beltman. |
-| IV | 1A | Mixture density network | 01 | `mixture_density_network_1a_01.ipynb` | Predict a Gaussian-mixture distribution for signed `DepDelay`; evaluate negative log likelihood, CRPS, interval coverage, and probability of delay at least 15 minutes. |
-| IV | 1A | CatBoost smooth-iteration ensemble | 01 | `catboost_th_1a_01.ipynb` | Adapt Beltman's CatBoostTH as an ensemble of independently seeded, posterior-sampled regressors with many small boosting steps; use their predictions as an empirical distribution. |
-| IV | 1A | CatBoost rough-iteration ensemble | 01 | `catboost_pr_1a_01.ipynb` | Adapt Beltman's CatBoostPR as independently seeded, posterior-sampled regressors with fewer, larger boosting steps; test whether the added spread improves uncertainty estimates. |
-
-Equivalent arrival-delay regression experiments are conditional on retaining a signed arrival-delay target such as
-`ArrDelay`; the current cleaned feature datasets retain the binary and grouped arrival targets but not a signed
-arrival-delay-minute target. Adding that target would require a documented data-contract change and a regeneration of
-the arrival feature datasets.
 
 ## Reference-model coverage and scope decisions
 
 | Reference | Models or methods directly evaluated | Capstone disposition |
 |---|---|---|
-| [Snell et al.](resources/docs/02_Snell_MLFlightDelayPrediction.pdf) | Logistic regression, KNN, bagging, decision tree, RepTree, random forest, neural network, SVM, AdditiveRegression, and regression variants of bagging, RepTree, and random forest; SMOTE. | All model families appear in Phases I or IV. Cost-complexity-pruned trees are documented analogues for RepTree. `DepDel15` and `DepDelay` must not be predictors for Model 1A or 2A even though Snell reports scenarios that include them. |
-| [Zoutendijk and Mitici](resources/docs/03_Zoutendijk_ProbabilisticFlightDelay.pdf) | Mixture density network and random-forest regression for flight-specific delay distributions. | Included in Phase IV. The binary threshold probability is secondary to the primary classifier task and must be evaluated for calibration. |
-| [Li](resources/docs/04_Li_DelayPropagationPrediction.pdf) | Multi-label random forest, random-forest recursive feature elimination, SMOTE, and chained delay-propagation variants. | Multi-class RF and training-only RFECV are included. Actual departure delay is allowed only in 2B/2C. Late-arriving-aircraft, tail-chain, and network-propagation inputs remain out of scope. |
-| [AlBassam](resources/docs/05_AlBassam_MLDelayEval.pdf) | Decision tree, random forest, SVC, logistic regression, KNN, and Naive Bayes with random over-sampling, SMOTE, and ADASYN. | All six classifiers and all three resampling families are included in Phase I; resampling remains inside training folds. The paper's actual arrival, delay-cause, and previous-flight fields are not adopted because they are unavailable at this project's early prediction times or are direct outcomes. |
-| [Chen and Li](resources/docs/06_Chen_ChainedDelayPrediction.pdf) | Multi-label random forest, recursive feature elimination, SMOTE, and chained delay-propagation variants. | Included through the multi-class and RFECV experiments. Aircraft-chain propagation remains excluded by the Appendix B scope rule. |
-| [Pineda-Jaramillo et al.](resources/docs/15_Pineda_ExplainableDelayML.pdf) | Logistic regression, decision tree, Naive Bayes, KNN, RBF SVM, LDA, AdaBoost, Extra Trees, random forest, and gradient boosting; SMOTE-ENN; SHAP and Sobol explanations. | All ten classifiers are included in Phase I, SMOTE-ENN is in the imbalance study, and SHAP is required for supported finalists. Weather observed at destination landing or origin takeoff is not adopted for 1A/2A. Sobol analysis is optional if it adds information beyond SHAP and permutation importance. |
-| [Beltman et al.](resources/docs/16_Beltman_DepartureDelayForecast.pdf) | Random-forest regression, CatBoostTH, CatBoostPR, and deep neural-network regression at multiple pre-departure horizons. | Regression families are included in Phase IV, and CatBoost is also adapted as a primary classifier. The paper's 90-to-15-minute dynamic horizons are not reproduced because the current annual sources do not provide equivalent rolling operational snapshots. |
+| [Snell et al.](resources/docs/02_Snell_MLFlightDelayPrediction.pdf) | Logistic regression, KNN, bagging, decision tree, RepTree, random forest, neural network, SVM, and SMOTE. | The classifier families are included in Stage I. Cost-complexity-pruned trees provide a documented analogue for RepTree. `DepDel15` and `DepDelay` must not be predictors for Model 1A or 2A even though Snell reports scenarios that include them. |
+| [Zoutendijk and Mitici](resources/docs/03_Zoutendijk_ProbabilisticFlightDelay.pdf) | Airline, airport, weather, schedule, and traffic inputs; evaluation of flight-specific delay uncertainty. | The paper informs the feature design and the project's checks of predicted-probability quality. The core experiments still predict the binary 15-minute target. |
+| [Li](resources/docs/04_Li_DelayPropagationPrediction.pdf) | Random forest, random-forest recursive feature elimination, SMOTE, and chained delay-propagation variants. | Random Forest and training-only RFECV are included. Actual departure delay is allowed only in 2B/2C. Late-arriving-aircraft, tail-chain, and network-propagation inputs remain out of scope. |
+| [AlBassam](resources/docs/05_AlBassam_MLDelayEval.pdf) | Decision tree, random forest, SVC, logistic regression, KNN, and Naive Bayes with random over-sampling, SMOTE, and ADASYN. | All six classifiers and all three resampling families are included in Stage I; resampling remains inside training folds. The paper's actual arrival, delay-cause, and previous-flight fields are not adopted because they are unavailable at this project's early prediction times or are direct outcomes. |
+| [Chen and Li](resources/docs/06_Chen_ChainedDelayPrediction.pdf) | Random forest, recursive feature elimination, SMOTE, and chained delay-propagation variants. | Random Forest, RFECV, and SMOTE are included. Aircraft-chain propagation remains excluded by the Appendix B scope rule. |
+| [Pineda-Jaramillo et al.](resources/docs/15_Pineda_ExplainableDelayML.pdf) | Logistic regression, decision tree, Naive Bayes, KNN, RBF SVM, LDA, AdaBoost, Extra Trees, random forest, and gradient boosting; SMOTE-ENN; SHAP and Sobol explanations. | All ten classifiers are included in Stage I, SMOTE-ENN is in the imbalance study, and SHAP is required for supported finalists. Weather observed at destination landing or origin takeoff is not adopted for 1A/2A. |
+| [Beltman et al.](resources/docs/16_Beltman_DepartureDelayForecast.pdf) | CatBoost and neural-network methods at several pre-departure prediction times. | CatBoost is included as a core classifier. The paper's changing 90-to-15-minute prediction times are not reproduced because the current annual sources do not provide equivalent rolling operational snapshots. |
 
 The excluded chained-propagation and rolling-horizon designs are scope decisions, not claims that the methods are
 ineffective. They require information the current project intentionally does not collect or does not permit at the
@@ -1326,3 +1331,18 @@ planned Random Forest and CatBoost experiments, but its ranking gain is too smal
 single trees remain below the raw logistic baseline on validation AP, ROC AUC, and training-selected F1. Ensemble trees
 are the next opportunity to determine whether the congestion and weather interactions become materially more useful when
 the model is not constrained to one tree.
+
+# Appendix E
+
+This appendix is a temporary placeholder for extensions that may be explored if time remains after the four core
+15-minute classification models—1A, 2A, 2B, and 2C—are complete. These extensions are not required for the capstone's
+main goals.
+
+| Optional stage | Possible extension | Minimum plan |
+|---|---|---|
+| III | Predict several delay categories | Use the existing BTS departure and arrival delay-group fields to test whether a multi-class model can distinguish levels of delay. Keep these results separate from the binary 15-minute classifier results. |
+| IV | Predict delay minutes or a range of likely outcomes | Begin with signed departure-delay minutes. An arrival version would first require adding a signed arrival-delay target and regenerating the arrival feature files. Possible methods include Random Forest, neural-network, mixture-density, and CatBoost ensemble approaches. |
+
+If this work is completed, its methods and results should be folded into the relevant Modeling, Evaluation, Appendix C,
+and Appendix D sections. If time does not allow it, Appendix E and its single table-of-contents entry can be removed
+without changing the core experiment plan or the documented results for Models 1A, 2A, 2B, and 2C.
