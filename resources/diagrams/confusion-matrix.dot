@@ -1,0 +1,45 @@
+digraph confusion_matrix {
+  graph [
+    bgcolor="#ffffff",
+    pad="0.20",
+    nodesep="0.25",
+    ranksep="0.25"
+  ];
+
+  node [shape=plain, fontname="Helvetica Neue"];
+
+  matrix [label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="14" COLOR="#94a3b8">
+      <TR>
+        <TD BORDER="0"></TD>
+        <TD BORDER="0" COLSPAN="2"><FONT POINT-SIZE="15"><B>Model prediction</B></FONT></TD>
+      </TR>
+      <TR>
+        <TD BORDER="0" ROWSPAN="3"><FONT POINT-SIZE="15"><B>Actual<BR/>outcome</B></FONT></TD>
+        <TD BGCOLOR="#f1f5f9"><FONT POINT-SIZE="13"><B>Predict delay</B><BR/>positive prediction</FONT></TD>
+        <TD BGCOLOR="#f1f5f9"><FONT POINT-SIZE="13"><B>Predict no delay</B><BR/>negative prediction</FONT></TD>
+      </TR>
+      <TR>
+        <TD BGCOLOR="#e8f5ec"><FONT POINT-SIZE="14"><B>True positive (TP)</B></FONT><BR/><FONT POINT-SIZE="12">Correct delay alert</FONT></TD>
+        <TD BGCOLOR="#fff1e8"><FONT POINT-SIZE="14"><B>False negative (FN)</B></FONT><BR/><FONT POINT-SIZE="12">Delayed flight missed</FONT></TD>
+      </TR>
+      <TR>
+        <TD BGCOLOR="#fff1e8"><FONT POINT-SIZE="14"><B>False positive (FP)</B></FONT><BR/><FONT POINT-SIZE="12">False alarm</FONT></TD>
+        <TD BGCOLOR="#e8f5ec"><FONT POINT-SIZE="14"><B>True negative (TN)</B></FONT><BR/><FONT POINT-SIZE="12">Correctly predicted no delay</FONT></TD>
+      </TR>
+    </TABLE>
+  >];
+
+  legend [label=<
+    <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="8" CELLPADDING="3">
+      <TR>
+        <TD BGCOLOR="#e8f5ec" WIDTH="20"></TD>
+        <TD ALIGN="LEFT"><FONT POINT-SIZE="11">Correct predictions lie on the diagonal.</FONT></TD>
+        <TD BGCOLOR="#fff1e8" WIDTH="20"></TD>
+        <TD ALIGN="LEFT"><FONT POINT-SIZE="11">Off-diagonal cells are errors.</FONT></TD>
+      </TR>
+    </TABLE>
+  >];
+
+  matrix -> legend [style=invis];
+}
