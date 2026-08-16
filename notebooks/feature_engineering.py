@@ -228,7 +228,7 @@ def _binary_indicator(condition: pd.Series, available: pd.Series) -> pd.Series:
 
 
 def add_pre_features(source: pd.DataFrame) -> pd.DataFrame:
-    """Add the Appendix B features available before pushback."""
+    """Add the Appendix C features available before pushback."""
 
     required = [
         "Year",
@@ -473,4 +473,3 @@ def model_feature_candidates(model: str, available_columns: Iterable[str]) -> li
     if missing:
         raise KeyError(f"Model {model} candidate columns are missing: {missing}")
     return list(MODEL_FEATURE_CANDIDATES[model])
-
