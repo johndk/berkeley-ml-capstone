@@ -57,36 +57,38 @@
     - [Joined ASPM planned-demand columns](Appendix-B.md#joined-aspm-planned-demand-columns)
     - [Joined NOAA weather columns](Appendix-B.md#joined-noaa-weather-columns)
 - [Appendix C](Appendix-C.md)
-  - [Feature Engineering](Appendix-C.md#feature-engineering)
-    - [Engineered feature dictionary](Appendix-C.md#engineered-feature-dictionary)
-    - [Feature selection and timing rules](Appendix-C.md#feature-selection-and-timing-rules)
+  - [Baseline Feature Engineering](Appendix-C.md#baseline-feature-engineering)
+    - [Base Engineered feature dictionary](Appendix-C.md#base-engineered-feature-dictionary)
   - [Operational Backlog Feature Engineering](Appendix-C.md#operational-backlog-feature-engineering)
     - [Backlog feature dictionary](Appendix-C.md#backlog-feature-dictionary)
     - [Same-airline backlog feature dictionary](Appendix-C.md#same-airline-backlog-feature-dictionary)
-    - [Backlog timing and availability rules](Appendix-C.md#backlog-timing-and-availability-rules)
   - [Aircraft Rotation Feature Engineering](Appendix-C.md#aircraft-rotation-feature-engineering)
     - [Rotation feature dictionary](Appendix-C.md#rotation-feature-dictionary)
-    - [Rotation timing, leakage, and availability rules](Appendix-C.md#rotation-timing-leakage-and-availability-rules)
-  - [Current Model 1A Operational Feature Manifest](Appendix-C.md#current-model-1a-operational-feature-manifest)
 - [Appendix D](Appendix-D.md)
-  - [Experiment protocol](Appendix-D.md#experiment-protocol)
-  - [Primary binary-classification experiments](Appendix-D.md#primary-binary-classification-experiments)
-  - [Reference models and project scope](Appendix-D.md#reference-models-and-project-scope)
+  - [Scope and rules](Appendix-D.md#scope-and-rules)
+  - [Reusable feature allowlists](Appendix-D.md#reusable-feature-allowlists)
+  - [Model 1A experiments](Appendix-D.md#model-1a-experiments)
+  - [Arrival-model experiments](Appendix-D.md#arrival-model-experiments)
+  - [Superseded baseline notebooks](Appendix-D.md#superseded-baseline-notebooks)
 - [Appendix E](Appendix-E.md)
-  - [Results recording rules](Appendix-E.md#results-recording-rules)
-  - [Experiment configurations](Appendix-E.md#experiment-configurations)
-  - [Ranking and calibration results](Appendix-E.md#ranking-and-calibration-results)
-  - [Operating-threshold results](Appendix-E.md#operating-threshold-results)
-    - [Current Model 1A logistic-regression comparison](Appendix-E.md#current-model-1a-logistic-regression-comparison)
-    - [Current Model 1A exact-manifest Random Forest comparison](Appendix-E.md#current-model-1a-exact-manifest-random-forest-comparison)
-    - [Current Model 1A CatBoost/MLP blend comparison](Appendix-E.md#current-model-1a-catboostmlp-blend-comparison)
-    - [Current Model 1A CatBoost calibration comparison](Appendix-E.md#current-model-1a-catboost-calibration-comparison)
-    - [Current Model 1A CatBoost subgroup and SHAP audit](Appendix-E.md#current-model-1a-catboost-subgroup-and-shap-audit)
+  - [Experiment protocol](Appendix-E.md#experiment-protocol)
+  - [Primary binary-classification experiments](Appendix-E.md#primary-binary-classification-experiments)
+  - [Reference models and project scope](Appendix-E.md#reference-models-and-project-scope)
 - [Appendix F](Appendix-F.md)
-  - [Confusion matrix](Appendix-F.md#confusion-matrix)
-  - [Threshold-dependent classification metrics](Appendix-F.md#threshold-dependent-classification-metrics)
-  - [Probability ranking and calibration metrics](Appendix-F.md#probability-ranking-and-calibration-metrics)
-  - [Related evaluation terms](Appendix-F.md#related-evaluation-terms)
+  - [Results recording rules](Appendix-F.md#results-recording-rules)
+  - [Experiment configurations](Appendix-F.md#experiment-configurations)
+  - [Ranking and calibration results](Appendix-F.md#ranking-and-calibration-results)
+  - [Operating-threshold results](Appendix-F.md#operating-threshold-results)
+    - [Current Model 1A logistic-regression comparison](Appendix-F.md#current-model-1a-logistic-regression-comparison)
+    - [Current Model 1A exact-manifest Random Forest comparison](Appendix-F.md#current-model-1a-exact-manifest-random-forest-comparison)
+    - [Current Model 1A CatBoost/MLP blend comparison](Appendix-F.md#current-model-1a-catboostmlp-blend-comparison)
+    - [Current Model 1A CatBoost calibration comparison](Appendix-F.md#current-model-1a-catboost-calibration-comparison)
+    - [Current Model 1A CatBoost subgroup and SHAP audit](Appendix-F.md#current-model-1a-catboost-subgroup-and-shap-audit)
+- [Appendix G](Appendix-G.md)
+  - [Confusion matrix](Appendix-G.md#confusion-matrix)
+  - [Threshold-dependent classification metrics](Appendix-G.md#threshold-dependent-classification-metrics)
+  - [Probability ranking and calibration metrics](Appendix-G.md#probability-ranking-and-calibration-metrics)
+  - [Related evaluation terms](Appendix-G.md#related-evaluation-terms)
 
 ## Overview
 
@@ -275,7 +277,7 @@ information available before pushback. Model 2B adds the actual gate-departure t
 adds taxi-out and takeoff information. Separate approved input lists in `notebooks/feature_engineering.py` make sure that
 information from a later stage of the flight cannot be used for an earlier prediction.
 
-See [Appendix C: Feature Engineering](Appendix-C.md#feature-engineering) for the candidate features, their construction, and their rationale.
+See [Appendix C: Baseline Feature Engineering](Appendix-C.md#baseline-feature-engineering) for the candidate features, their construction, and their rationale.
 
 ### Matching Records by Time
 
@@ -609,7 +611,7 @@ causal-masking checks:
 
 These rates show why rotation can be substantially more informative than aggregate backlog: an aircraft that has not
 yet reached JFK cannot normally operate its assigned departure on time. These descriptive rates alone do not establish
-outside-year model performance; the controlled 2023 results are recorded in [Appendix E](Appendix-E.md). The historical reconstruction
+outside-year model performance; the controlled 2023 results are recorded in [Appendix F](Appendix-F.md). The historical reconstruction
 also relies on the final BTS `Tail_Number`. A deployable version therefore
 requires a timestamped aircraft-assignment feed and live arrival events; unless the recorded tail can be shown to match
 the assignment known at `T`, rotation experiment results must be presented as a retrospective upper bound. The full
@@ -687,7 +689,8 @@ inside training-only model pipelines rather than data preparation.
 [ASPM](Appendix-A.md#aspm-column-selection-and-dictionary), and [NOAA](Appendix-A.md#noaa-column-selection-and-dictionary) source-column
 decisions. [Appendix B](Appendix-B.md) documents the
 [joined data columns](Appendix-B.md#joined-data-column-dictionary), and [Appendix C](Appendix-C.md) documents the
-[feature-engineering analysis](Appendix-C.md#feature-engineering).
+[baseline feature-engineering analysis](Appendix-C.md#baseline-feature-engineering). [Appendix D](Appendix-D.md) records the exact
+experiment allowlists and explains each controlled change.
 
 ## Modeling
 
@@ -702,7 +705,7 @@ information becomes available during the flight.
 | 2B | Immediately after pushback | Same JFK arrivals and target as 2A | Model 2A information plus actual gate-out time and departure delay |
 | 2C | Immediately after takeoff | Same JFK arrivals and target as 2A | Model 2B information plus taxi-out time and actual takeoff time |
 
-[Appendix D](Appendix-D.md) contains the full experiment plan and notebook registry. [Appendix E](Appendix-E.md) records the
+[Appendix E](Appendix-E.md) contains the full experiment plan and notebook registry. [Appendix F](Appendix-F.md) records the
 settings and results for completed experiments.
 
 ### Experiment roadmap
@@ -719,7 +722,7 @@ Stage I provides a broad but manageable comparison on Model 1A. Stage II then ap
 three arrival prediction times. This avoids running every possible method and feature set at every prediction time while
 still allowing a strong Stage I method to be carried into the arrival comparison.
 
-The [experiment registry](Appendix-D.md#primary-binary-classification-experiments) lists the Stage I and II notebooks.
+The [experiment registry](Appendix-E.md#primary-binary-classification-experiments) lists the Stage I and II notebooks.
 
 ### How experiments are compared
 
@@ -739,7 +742,7 @@ Every experiment follows the same rules so the results can be compared fairly:
    main measure used to rank models. ROC AUC provides another view of ranking, and the Brier score checks the quality of
    predicted probabilities. At a chosen cutoff, precision shows how often delay alerts are correct, recall shows how
    many delayed flights are found, and F1 balances those two measures. Ordinary accuracy is supporting information
-   because it can look good even when a model misses many delayed flights. [Appendix D](Appendix-D.md) lists the additional measures.
+   because it can look good even when a model misses many delayed flights. [Appendix E](Appendix-E.md) lists the additional measures.
 5. **Choose the decision threshold separately.** Results are reported at the standard 0.50 cutoff and at a cutoff chosen
    from 2019 training-period predictions. The 2023 or 2024 outcomes are not used to choose that cutoff.
 6. **Compare like with like.** Modeling methods are compared within the same model and flight population. Models 2A,
@@ -747,7 +750,7 @@ Every experiment follows the same rules so the results can be compared fairly:
    rather than a change in the sample.
 
 The full rules for repeatability, class balancing, model explanations, and checks across months, airlines, routes,
-weather, and traffic levels are in [Appendix D: Experiment protocol](Appendix-D.md#experiment-protocol).
+weather, and traffic levels are in [Appendix E: Experiment protocol](Appendix-E.md#experiment-protocol).
 
 ### Arrival prediction comparison
 
@@ -770,7 +773,7 @@ arrival rows for Models 2A, 2B, and 2C makes that added variation part of every 
 of unfair differences between them.
 
 Completed experiment configurations, model-comparison measures, and decision-threshold results are recorded in
-[Appendix E](Appendix-E.md).
+[Appendix F](Appendix-F.md).
 
 ## Evaluation
 

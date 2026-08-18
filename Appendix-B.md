@@ -5,15 +5,15 @@
 This appendix describes the columns saved after the BTS, ASPM, and NOAA datasets are joined. It covers the departure
 and arrival datasets, explains the purpose of each joined field, and distinguishes model inputs from fields retained
 only to build features or check the joins. The engineered features built from these columns are documented in
-[Appendix C](Appendix-C.md#feature-engineering).
+[Appendix C](Appendix-C.md#baseline-feature-engineering).
 
 ## Joined Data Column Dictionary
 
 Each row in `data/merged/JFK_YEAR_departures.csv` represents a completed flight leaving JFK. The dataset has 77 columns:
 34 from BTS, 24 from ASPM, and 19 from NOAA. Each row in `data/merged/JFK_YEAR_arrivals.csv` represents a completed
 flight headed to JFK. That dataset has 72 columns: 28 from BTS, 24 from ASPM, and 20 from NOAA. The NOAA total includes
-`NOAA_AIRPORT`. The departure dataset has six additional BTS outcome fields needed to build the aircraft-rotation
-features; the completed arrival experiments do not need them.
+`NOAA_AIRPORT`. The departure dataset has six additional BTS outcome fields retained for completed-flight audit. Current
+feature engineering and modeling do not depend on these six fields.
 
 The merged datasets contain more information than any one model is allowed to use. Targets, actual outcomes, timestamps,
 and operating events are kept so the data and joins can be checked and later features can be built. Their presence does
@@ -27,9 +27,9 @@ data. The 2024 data remains untouched until the final model and decision thresho
 
 ### Joined BTS flight columns
 
-The table lists the union of BTS fields in the two merged scenarios. `WheelsOn`, `TaxiIn`, `ArrTime`, `ArrDelay`,
-`ArrDelayMinutes`, and `ActualElapsedTime` are present only in the departure datasets, where they support audit and the
-separate preceding-aircraft rotation path; the arrival datasets retain the other 28 BTS fields.
+The table lists the BTS fields retained across the departure and arrival datasets. These fields describe the flight
+schedule, airline, route, operating events, delay outcomes, and supporting audit information. The final column explains
+how each field is used and when it becomes available.
 
 | Column | Description | Use and availability |
 |---|---|---|
@@ -55,15 +55,15 @@ separate preceding-aircraft rotation path; the arrival datasets retain the other
 | `TaxiOut` | Minutes from gate departure to takeoff. | Available only after takeoff and used to derive Model 2C's `LOG_TAXI_OUT_MINUTES`; the raw value is excluded from the current manifest. |
 | `WheelsOff` | Actual takeoff time in local HHMM form. | Available only at takeoff and used to derive Model 2C's cyclical takeoff-time fields; the raw value is excluded from the current manifest. |
 | `CRSArrTime` | Scheduled arrival time in the destination's local HHMM form. | Schedule field known before departure. |
-| `ArrTime` | Actual gate-arrival time in destination-local HHMM form. | Restored for rotation-source audit; completed-flight outcome and never a direct Model 1A predictor. |
-| `ArrDelay` | Actual gate arrival minus scheduled arrival, in signed minutes. | Used only for an already-arrived preceding aircraft in the separate rotation path; the target flight's value is prohibited. |
-| `ArrDelayMinutes` | Nonnegative arrival-delay minutes. | Retained for audit; unavailable for the target flight at Model 1A prediction time. |
+| `ArrTime` | Actual gate-arrival time in destination-local HHMM form. | Lower-priority completed-flight audit field; not used by current feature engineering or modeling. |
+| `ArrDelay` | Actual gate arrival minus scheduled arrival, in signed minutes. | The target flight's value is an audit-only future outcome. Rotation features use the preceding inbound flight's value from a separate dataset, not this field. |
+| `ArrDelayMinutes` | Nonnegative arrival-delay minutes. | Lower-priority delay-consistency audit field; not used by current feature engineering or modeling. |
 | `ArrDel15` | Indicates an arrival delay of at least 15 minutes. | Target for Models 2A, 2B, and 2C and never a predictor for that target flight. For Model 1A rotation experiments, an already-arrived preceding leg may supply it as `ROTATION_INBOUND_DELAYED_15`. |
 | `ArrivalDelayGroups` | Arrival delay grouped into 15-minute ranges. | Completed-flight outcome used only for EDA and target validation. |
-| `WheelsOn` | Actual landing time in destination-local HHMM form. | Restored for rotation-source audit; unavailable for the target flight before pushback. |
-| `TaxiIn` | Minutes from landing to gate arrival. | Restored for rotation-source audit; unavailable for the target flight before pushback. |
+| `WheelsOn` | Actual landing time in destination-local HHMM form. | Lower-priority event-sequence audit field; not used by current feature engineering or modeling. |
+| `TaxiIn` | Minutes from landing to gate arrival. | Lower-priority duration audit field; not used by current feature engineering or modeling. |
 | `CRSElapsedTime` | Scheduled gate-to-gate travel time in minutes. | Route and schedule feature known before departure. |
-| `ActualElapsedTime` | Actual gate-to-gate elapsed time in minutes. | Restored for audit; completed-flight outcome and not a direct Model 1A predictor. |
+| `ActualElapsedTime` | Actual gate-to-gate elapsed time in minutes. | Lower-priority duration audit field; not used by current feature engineering or modeling. |
 | `Distance` | Published route distance in miles. | Route feature known before departure. |
 | `DistanceGroup` | BTS distance band based on 250-mile intervals. | Grouped route-length field available before departure. |
 | `DATE` | Scheduled departure timestamp constructed from `FlightDate` and `CRSDepTime`. | Main flight timestamp used for sorting and time-based joins. |

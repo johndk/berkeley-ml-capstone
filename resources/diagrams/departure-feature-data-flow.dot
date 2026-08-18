@@ -1,0 +1,119 @@
+digraph departure_feature_data_flow {
+  graph [
+    rankdir=TB,
+    bgcolor="white",
+    pad="0.30",
+    nodesep="0.28",
+    ranksep="0.48",
+    splines=ortho,
+    ordering=out,
+    newrank=true,
+    fontname="Helvetica Neue",
+    labelloc="t",
+    label="Departure-delay data flow — Model 1A",
+    fontsize=20,
+    fontcolor="#172033"
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Helvetica Neue",
+    fontsize=10,
+    color="#b8c2d1",
+    fontcolor="#172033",
+    penwidth=1.2,
+    margin="0.16,0.10"
+  ];
+
+  edge [
+    color="#64748b",
+    penwidth=1.2,
+    arrowsize=0.7
+  ];
+
+  subgraph cluster_primary_sources {
+    label="";
+    color="#d7dee8";
+    fillcolor="#fafbfc";
+    style="rounded,filled";
+    fontname="Helvetica Neue";
+    fontsize=12;
+    fontcolor="#475569";
+    margin=14;
+
+    cbts_a [label="C-BTS-A\nJFK_YEAR.csv", fillcolor="#f6f8fb"];
+    caspm_a [label="C-ASPM-A\nJFK_YEAR.csv", fillcolor="#f6f8fb"];
+    cnoaa_a [label="C-NOAA-A\nJFK_YEAR.csv", fillcolor="#f6f8fb"];
+    cbts_c [label="C-BTS-C\ncleaned_JFK_YEAR.csv", fillcolor="#f6f8fb", group="rotation"];
+    rbts_a [label="R-BTS-A\nJFK.csv", fillcolor="#f6f8fb", group="rotation_full"];
+
+    { rank=same; cbts_a; caspm_a; cnoaa_a; cbts_c; rbts_a; }
+  }
+
+  merge_d [label="merge_departures.ipynb", fillcolor="#eaf2fb", color="#5b82ae"];
+  md_d [label="MD-D\nJFK_YEAR_departures.csv", shape=cylinder, style=filled, fillcolor="#fff7e3", color="#c49120"];
+  feature_d [label="feature_departures.ipynb", fillcolor="#f1ecfa", color="#8064a8"];
+  bl_d [label="BL-D\nJFK_YEAR_departures.csv", shape=cylinder, style=filled, fillcolor="#fff7e3", color="#c49120"];
+
+  cbts_a -> merge_d;
+  caspm_a -> merge_d;
+  cnoaa_a -> merge_d;
+  merge_d -> md_d;
+  md_d -> feature_d;
+  feature_d -> bl_d;
+
+  subgraph cluster_operational {
+    label="";
+    color="#d7dee8";
+    fillcolor="#fafbfc";
+    style="rounded,filled";
+    fontname="Helvetica Neue";
+    fontsize=12;
+    fontcolor="#475569";
+    margin=14;
+
+    backlog [label="feature_departures_\nbacklog.ipynb", fillcolor="#eaf2fb", color="#5b82ae"];
+    bk60 [label="BK-60\nJFK_YEAR_departures_\nbacklog_w60.csv", shape=cylinder, style=filled, fillcolor="#edf8ee", color="#43834a"];
+
+    airline_backlog [label="feature_departures_\nbacklog_airline.ipynb", fillcolor="#eaf2fb", color="#5b82ae"];
+    bka60 [label="BKA-60\nJFK_YEAR_departures_\nbacklog_airline_w60.csv", shape=cylinder, style=filled, fillcolor="#edf8ee", color="#43834a"];
+
+    rotation_gap [label="", shape=box, width=1.1, height=0.01, style=invis];
+    rotation_output_gap [label="", shape=box, width=1.1, height=0.01, style=invis];
+
+    rotation [label="feature_departures_\nrotation.ipynb", fillcolor="#eaf2fb", color="#5b82ae", group="rotation"];
+    rt [label="RT\nJFK_YEAR_departures_\nrotation.csv", shape=cylinder, style=filled, fillcolor="#edf8ee", color="#43834a", group="rotation"];
+
+    rotation_full [label="feature_departures_rotation_\nfull_history.ipynb", fillcolor="#eaf2fb", color="#5b82ae", group="rotation_full"];
+    rtf [label="RTF\nJFK_YEAR_departures_\nrotation_full_history.csv", shape=cylinder, style=filled, fillcolor="#edf8ee", color="#43834a", group="rotation_full"];
+
+    backlog -> bk60;
+    airline_backlog -> bka60;
+    cbts_c -> rotation [constraint=false];
+    rotation -> rt;
+    rbts_a -> rotation_full [constraint=false];
+    rotation_full -> rtf;
+
+    { rank=same; backlog; airline_backlog; rotation_gap; rotation; rotation_full; }
+    { rank=same; bk60; bka60; rotation_output_gap; rt; rtf; }
+  }
+
+  bl_d -> backlog;
+  bl_d -> airline_backlog;
+  bl_d -> rotation;
+  bl_d -> rotation_full;
+
+  allowlists [
+    label="Model 1A\npredict DepDel15 before pushback",
+    fillcolor="#f4ecff",
+    color="#7450a6",
+    penwidth=1.5
+  ];
+
+  bl_d -> allowlists [constraint=false];
+  bk60 -> allowlists;
+  bka60 -> allowlists;
+  rt -> allowlists;
+  rtf -> allowlists;
+}
