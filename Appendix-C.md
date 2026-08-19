@@ -50,7 +50,17 @@ The diagram combines the dataset inventory and production-notebook mapping above
 
 ![Complete departure-delay data flow for Model 1A](resources/diagrams/departure-feature-data-flow.svg)
 
-The feature notebooks preserve the baseline departure rows and add one feature family. A model experiment can therefore combine fields from BL-D with the matching fields from BK-30, BK-60, BKA-60, RT, or RTF by using its Appendix D allowlist. Training and model selection use 2019, validation uses 2023, and 2024 remains untouched.
+The feature notebooks preserve the baseline departure rows and add one feature family. A model experiment can therefore combine fields from BL-D with the matching fields from BK-30, BK-60, BKA-60, RT, or RTF by using its Appendix D allowlist. Training and model selection use 2019, validation uses 2023, and 2024 was held back for final evaluation.
+
+#### Arrival-delay data flow: Models 2A, 2B, and 2C
+
+The diagram uses the dataset codes defined above. Cleaned airport datasets are consolidated for the JFK-arrival origin
+airports, joined into MD-A, and transformed into the shared BL-A feature dataset.
+
+![Arrival-delay data flow for Models 2A, 2B, and 2C](resources/diagrams/arrival-data-flow.svg)
+
+BL-A supports all three arrival prediction times. [Appendix D](Appendix-D.md#arrival-model-experiments) defines the
+exact allowlist for each experiment and limits each model to information available at its prediction time.
 
 ## Baseline Feature Engineering
 
@@ -199,6 +209,40 @@ represents the fraction of scheduled same-airline work that remains pending:
 | `AIRLINE_BACKLOG_W60_TOTAL_DEP_DELAY_MINUTES` | Sum of nonnegative delay minutes among completed same-airline cohort flights. | Complete numeric value; zero when no completed delay minutes are observed. |
 | `AIRLINE_BACKLOG_W60_PENDING_SHARE` | `PENDING_COUNT / SCHEDULED_COUNT`. | Missing when the same-airline scheduled cohort is empty. |
 
+### Backlog implementation, validation, and scope
+
+The airport-wide calculations are implemented in
+[`feature_engineering_backlog.py`](notebooks/feature_engineering_backlog.py). The same-airline calculations are in
+[`feature_engineering_backlog_airline.py`](notebooks/feature_engineering_backlog_airline.py). The production notebooks
+and saved dataset names are listed in the [Datasets](#datasets) section. Each output preserves the BL-D flight rows and
+their order, then appends one backlog feature family:
+
+| Dataset | Added fields | Total columns | Generated years |
+|---|---:|---:|---|
+| BK-30 | 8 | 120 | 2019, 2023, 2024 |
+| BK-60 | 8 | 120 | 2019, 2023, 2024 |
+| BKA-60 | 9 | 121 | 2019, 2023, 2024 |
+
+These reusable datasets retain every generated backlog field. [Appendix D](Appendix-D.md) defines the smaller subsets
+used by individual experiments.
+
+The 2024 datasets were generated after the model design was frozen and did not participate in model selection.
+
+The same-airline development datasets were checked for row identity, arithmetic consistency, and identical values for
+same-airline flights sharing a scheduled cutoff. Flights from different airlines can have different backlog values at
+the same time.
+
+| Year | Flight rows | Reporting airlines | Rows with pending same-airline flights | Mean pending count |
+|---:|---:|---:|---:|---:|
+| 2019 | 107,430 | 10 | 36,464 | 0.5685 |
+| 2023 | 109,983 | 8 | 43,531 | 0.7171 |
+
+Backlog features were not implemented for Models 2A, 2B, and 2C. A valid arrival version would need all departures from
+each flight's origin airport, not only the subset traveling to JFK. Each airport would also need to be processed in its
+own local scheduled time before the results were combined.
+
+Historical BTS outcomes reconstruct the development snapshots. A deployed Model 1A would instead need a timely JFK
+schedule and gate-out event feed. An arrival implementation would need equivalent feeds for every included origin.
 
 ## Aircraft Rotation Feature Engineering
 
@@ -234,3 +278,73 @@ and are saved as `JFK_YEAR_departures_rotation.csv` and `JFK_YEAR_departures_rot
 | `ROTATION_LOG_ACTUAL_TURN_MINUTES` | `log1p(ROTATION_ACTUAL_TURN_MINUTES)`. | Missing unless actual turn time is observable. | Skew-reduced actual-turn representation. |
 | `ROTATION_INBOUND_ARR_DELAY` | Signed `ArrDelay` of the matched inbound only when that arrival occurred by `T`. | Missing for `NOT_ARRIVED` and unmatched rows. | Carries observed arrival performance into the next leg without exposing a future outcome. |
 | `ROTATION_INBOUND_DELAYED_15` | `ArrDel15` of the matched inbound only when that arrival occurred by `T`. | Missing for `NOT_ARRIVED` and unmatched rows. | Compact observed preceding-leg delay indicator. |
+
+### Rotation implementation and validation
+
+The deterministic calculations are implemented in
+[`feature_engineering_rotation.py`](notebooks/feature_engineering_rotation.py). As shown in the
+[dataset production table](#datasets), [`feature_departures_rotation.ipynb`](notebooks/feature_departures_rotation.ipynb)
+creates RT from BL-D and the limited C-BTS-C inbound history. The append-only
+[`feature_departures_rotation_full_history.ipynb`](notebooks/feature_departures_rotation_full_history.ipynb) creates
+RTF from BL-D and the raw R-BTS-A airport-movement history. Both outputs preserve all departure rows and append the
+same 13 predictor fields and eight audit fields, producing 133 columns.
+
+For a target flight with scheduled-departure cutoff `T`, the process orders the assigned aircraft's earlier JFK events
+in UTC. A preceding arrival provides a rotation match. A preceding departure blocks an older arrival from being reused
+after that aircraft was scheduled to leave JFK. For flights crossing time zones, the inbound arrival date is selected
+so that the reconstructed UTC duration is closest to BTS `CRSElapsedTime`; the remaining difference is retained for
+audit.
+
+Only information observable by `T` is exposed as a predictor. If the inbound aircraft had arrived, its arrival delay
+and actual ground time were known. If it had not arrived, its eventual outcome remains missing; the dataset records
+only that it was overdue and by how many minutes. The original RT datasets passed row-preservation, feature-identity,
+and causal-masking checks:
+
+| Year | Departure rows | Rotation matches | Match rate | Not arrived by cutoff | Departure-delay rate when not arrived |
+|---:|---:|---:|---:|---:|---:|
+| 2019 | 107,430 | 102,741 | 95.64% | 2,638 | 99.77% |
+| 2023 | 109,983 | 102,716 | 93.39% | 2,995 | 99.63% |
+| 2024 | 104,715 | 98,350 | 93.92% | 2,660 | 99.74% |
+
+The last column is a descriptive audit using the target outcome. It is not a model input or evidence of performance in
+another year.
+
+### Full-history rotation audit
+
+[`audit_rotation.ipynb`](notebooks/audit_rotation.ipynb) compares RT's limited history with every available BTS
+movement at JFK. The read-only audit adds completed, non-diverted inbound arrivals and treats every non-cancelled
+outbound movement, including a later-diverted flight, as a blocking departure event. It does not write or replace a
+feature dataset. Depending on the year, the full history adds inbound flights from 21–23 origins absent from RT's
+limited history.
+
+| Year | Added inbound history | Match rate, RT to full history | Different prior inbound | Rotation status changed | Turns over 24 hours, RT to full history |
+|---:|---:|---:|---:|---:|---:|
+| 2019 | 17,315 | 95.64% to 96.65% | 8,443 (7.86%) | 2,065 | 10,668 to 8,281 |
+| 2023 | 19,595 | 93.39% to 95.54% | 8,940 (8.13%) | 3,698 | 10,822 to 8,409 |
+| 2024 | 16,031 | 93.92% to 95.93% | 7,447 (7.11%) | 3,083 | 10,297 to 8,343 |
+
+Full history reduced apparent turns over 24 hours by 19–22%, although 7.6–8.0% of target rows still had such matches.
+Remaining long turns may reflect overnight or maintenance stays, movements outside BTS, year-boundary truncation, or
+the aircraft-assignment limitation described below. The strong descriptive signal remained: about 99.7–99.8% of
+departures whose assigned aircraft had not arrived by the cutoff were delayed.
+
+The audit led to the separately named RTF datasets; RT and its experiments remain unchanged. RTF uses completed,
+non-diverted inbound arrivals and all non-cancelled outbound blocking events:
+
+| Year | Departure rows | Full-history matches | Match rate | Not arrived by cutoff | Scheduled turns over 24 hours |
+|---:|---:|---:|---:|---:|---:|
+| 2019 | 107,430 | 103,834 | 96.65% | 3,133 | 8,281 |
+| 2023 | 109,983 | 105,082 | 95.54% | 3,565 | 8,409 |
+| 2024 | 104,715 | 100,454 | 95.93% | 3,113 | 8,343 |
+
+The selected model treatment masks rotation values when the scheduled turn exceeds 1,440 minutes. The row remains in
+the dataset and receives `LONG_TURN_EXCLUDED`. This rule is applied by the model pipeline, not written into RTF. The
+2019 and 2023 datasets were used for development. The 2024 dataset was generated after the design was frozen and did
+not participate in model selection.
+
+### Rotation assignment limitation
+
+The reconstruction uses the final BTS `Tail_Number`. BTS identifies the aircraft that operated the flight, but does
+not show whether that aircraft was assigned at the scheduled-departure cutoff. The resulting model scores are therefore
+retrospective upper bounds. A deployable version would require timestamped aircraft assignments and live arrival
+events so every rotation field reflects information available at prediction time.

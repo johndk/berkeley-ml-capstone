@@ -40,17 +40,33 @@ rather than because the fitted model changed. Exact source-field allowlists are 
 | 1A | Decision tree | 02 | [decision_tree_1a_02.ipynb](models/decision_tree_1a_02.ipynb) | `DepDel15` | 34 compact source and calculated fields for tree models; 265 columns after preparation | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Gini tree without class weighting; depth 15; minimum leaf 500; minimum split 250; 161 fitted leaves |
 | 1A | Random forest | 01 | [random_forest_1a_01.ipynb](models/random_forest_1a_01.ipynb) | `DepDel15` | Exact 34-field compact non-backlog tree manifest from Decision Tree Experiment 02; 265 columns after preparation | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | 400 bootstrap trees; Gini criterion; depth 15; minimum leaf 100; square-root feature sampling; no class weighting; out-of-bag accuracy diagnostic 0.8162 |
 | 1A | Random forest | 02 | [random_forest_1a_02.ipynb](models/random_forest_1a_02.ipynb) | `DepDel15` | CatBoost 04's exact 41 source fields: raw pre-pushback base, full-history rotation with the 24-hour mask, compact airport-wide W60 backlog, and five same-airline W60 fields; 210 prepared fields after fold-local imputation, missing indicators, and one-hot encoding | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | 300 bootstrap trees; Gini criterion; depth 18; minimum leaf 25; 50% feature sampling; no class weighting; selected from 16 configurations by five-fold temporal AP. OOB accuracy is 0.8840; the 80-fit search and all-2019 refit take 1,251.2 seconds. Final BTS tail assignment retains the retrospective upper-bound limitation. |
+| 1A | Linear discriminant analysis | 01 | [lda_1a_01.ipynb](models/lda_1a_01.ipynb) | `DepDel15` | CatBoost 04's exact 41 source fields and 24-hour rotation mask; six categorical and 35 numeric fields become 210 dense prepared predictors after fold-local imputation, missing indicators, one-hot encoding, and scaling | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | LSQR solver with fixed shrinkage 0.01, selected from ten ordinary and shrinkage LDA configurations using five chronological folds. The operating threshold is selected from held-out 2019 predictions. Final BTS tail assignment retains the retrospective upper-bound limitation. |
 | 1A | CatBoost | 01 | [catboost_1a_01.ipynb](models/catboost_1a_01.ipynb) | `DepDel15` | Exact 34-field compact non-backlog tree manifest; six categorical fields handled natively and 28 numeric fields retained without scaling | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | CatBoost 1.2.10; 45 trees selected as the median fold-best count; depth 6; learning rate 0.10; L2 leaf regularization 10; no class weighting |
 | 1A | CatBoost | 02 | [catboost_1a_02.ipynb](models/catboost_1a_02.ipynb) | `DepDel15` | Logistic Regression Experiment 08's exact 36 source fields: 20-field raw base, all 13 full-history rotation fields with the 24-hour mask, and three compact W60 backlog fields; six categorical fields handled natively and 30 numeric fields retained without scaling | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | CatBoost 1.2.10; 683 trees selected as the median fold-best count; depth 6; learning rate 0.03; L2 leaf regularization 3; no class weighting. Selected by average precision from a 16-configuration, five-fold temporal search with fold-local early stopping. Final BTS tail assignment retains the retrospective upper-bound limitation. |
 | 1A | CatBoost | 03 | [catboost_1a_03.ipynb](models/catboost_1a_03.ipynb) | `DepDel15` | Controlled comparison of CatBoost 02's 36-field compact W60 manifest with a 41-field manifest containing all eight existing W60 backlog fields | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Fixed CatBoost 02 classifier: 683 trees, depth 6, learning rate 0.03, L2 leaf regularization 3, and no class weighting. Compact W60 is selected by mean 2019 temporal AP, 0.7010 versus 0.7006 for full W60. The selected result therefore reproduces CatBoost 02 rather than replacing it. |
 | 1A | CatBoost | 04 | [catboost_1a_04.ipynb](models/catboost_1a_04.ipynb) | `DepDel15` | CatBoost 02's exact 36-field control versus a 41-field variant adding five same-airline W60 fields to the unchanged raw, full-history rotation, and compact airport-wide W60 base | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Fixed CatBoost 02 classifier: 683 trees, depth 6, learning rate 0.03, L2 leaf regularization 3, and no class weighting. The same-airline variant is selected by mean 2019 temporal AP, 0.7018 versus 0.7010 for the control. Existing rotation and both backlog files are paired in memory after three-way identity validation. |
+| 1A | CatBoost | 05 | [catboost_1a_05.ipynb](models/catboost_1a_05.ipynb) | `DepDel15` | CatBoost 04's 41-field control versus schedule-cycle, compact-weather, and combined additions from the existing departure feature dataset; the largest candidate has 51 fields | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Three predeclared guardrails reject all changes. The 51-field representation gains only 0.0014 mean temporal AP; the best depth-8 candidate gains 0.0021; and `has_time=True` gains 0.0010. The selected result therefore retains CatBoost 04's 41 fields, 683 trees, depth 6, learning rate 0.03, L2 leaf regularization 3, random strength 1, default row permutations, and no class weighting. |
 | 1A | Multilayer perceptron | 02 | [mlp_1a_02.ipynb](models/mlp_1a_02.ipynb) | `DepDel15` | The same 36 source fields as Logistic Regression Experiment 08 and CatBoost Experiment 02; six categorical fields one-hot encoded, 30 numeric fields median-imputed with missing indicators and standardized; 202 final prepared inputs | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | TensorFlow 2.21 Keras MLP; hidden layers `(64, 32)` with ReLU, batch normalization, dropout 0.25/0.20, and L2 `0.0001`; Adam learning rate `0.001`; batch size 512; 16 epochs selected as the median fold-best count; 15,489 trainable parameters. Selected from four configurations with five chronological folds and fold-local PR-AUC early stopping. Final BTS tail assignment retains the retrospective upper-bound limitation. |
 | 1A | CatBoost / MLP blend | 01 | [ensemble_1a_01.ipynb](models/ensemble_1a_01.ipynb) | `DepDel15` | Aligned probabilities from CatBoost 04's 41-field raw, rotation, airport-wide W60, and same-airline W60 manifest and MLP 02's 36-field raw, rotation, and compact airport-wide W60 manifest | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Fixed component configurations and identical five chronological folds. A weighted arithmetic mean of 0.75 CatBoost and 0.25 MLP is selected from five predeclared weights by mean 2019 fold AP; the 0.31 threshold is selected from aggregated 2019 OOF probabilities. No component is retuned, no combined dataset is written, and the final-tail assignment limitation remains. |
 | 1A | CatBoost calibration | 01 | [calibration_1a_01.ipynb](models/calibration_1a_01.ipynb) | `DepDel15` | CatBoost 04's unchanged 41-field manifest and fixed classifier; probability-only comparison of uncalibrated, sigmoid, and isotonic outputs | 2019: 107,430 JFK departures; calibration assessed forward on held-out folds 2–5 | 2023: 109,983 JFK departures; delay rate 0.2364 | Mean forward Brier score selects the unchanged probabilities: 0.0918 uncalibrated versus 0.0922 sigmoid and 0.0923 isotonic. The rejected corrections are not evaluated on 2023. CatBoost 04 and its 0.31 threshold therefore remain unchanged. |
 | 1A | CatBoost audit | 01 | [catboost_audit_1a_01.ipynb](models/catboost_audit_1a_01.ipynb) | `DepDel15` | CatBoost 04's unchanged 41-field manifest; six categorical and 35 numeric fields; subgroup diagnostics plus CatBoost SHAP values on a fixed 5,000-row 2023 sample | 2019: 107,430 JFK departures; delay rate 0.1877 | 2023: 109,983 JFK departures; delay rate 0.2364 | Frozen CatBoost 04 classifier and 0.31 threshold. Traffic quartiles are defined from 2019; all other groups use transparent fixed rules. The audit reproduces CatBoost 04, explains four representative outcome cases, and makes no model, calibration, feature, or threshold selection from 2023. |
 | 2A | Logistic regression | 01 | [logistic_regression_2a_01.ipynb](models/logistic_regression_2a_01.ipynb) | `ArrDel15` | 27 compact pre-pushback fields; 98 columns after training-based missing-value handling and category encoding | 2019: 107,354 JFK arrivals; delay rate 0.2029 | 2023: 109,947 JFK arrivals; delay rate 0.2463 | L1 logistic regression; `C=0.1`; no class weighting |
+| 2A | CatBoost | 01 | [catboost_2a_01.ipynb](models/catboost_2a_01.ipynb) | `ArrDel15` | Exact BL-A-27 allowlist: two native categorical and 25 numeric fields. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | CatBoost 1.2.10; 103 trees; depth 6; learning rate 0.10; L2 leaf regularization 3; balanced class weighting. Selected from 16 configurations using five chronological folds and fold-local early stopping. |
+| 2A | CatBoost | 02 | [catboost_2a_02.ipynb](models/catboost_2a_02.ipynb) | `ArrDel15` | BL-A-27 plus saved `SCHED_DEP_HOUR`, `Month`, and `DayOfWeek` and model-side `AIRLINE_ORIGIN`: 30 saved fields and 31 CatBoost inputs; six categorical and 25 numeric. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | CatBoost 1.2.10; 40 trees; depth 6; learning rate 0.10; L2 leaf regularization 3; balanced class weighting. The expansion is selected in a fixed-classifier screen and then tuned over 16 configurations using five chronological folds. |
 | 2B | Logistic regression | 01 | [logistic_regression_2b_01.ipynb](models/logistic_regression_2b_01.ipynb) | `ArrDel15` | Exact 27-field 2A base plus signed `DepDelay`; 99 prepared columns | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | L1 logistic regression; `C=0.01`; no class weighting |
+| 2B | Logistic regression | 02 | [logistic_regression_2b_02.ipynb](models/logistic_regression_2b_02.ipynb) | `ArrDel15` | BL-A-27 plus signed `DepDelay`: 28 saved fields. `MINUTES_TO_SCHEDULED_ARRIVAL_AT_PUSHBACK = CRSElapsedTime - DepDelay` is calculated in the notebook and represented by a degree-3 spline with five fold-fitted quantile knots; 105 prepared predictors. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | Four representations are screened with fixed L1 logistic regression (`C=0.01`, no class weighting). The selected pushback-margin spline is tuned over 16 configurations and retains L1, `C=0.01`, and no class weighting. |
+| 2B | CatBoost | 01 | [catboost_2b_01.ipynb](models/catboost_2b_01.ipynb) | `ArrDel15` | Logistic Regression 2B-02's 28 saved fields plus numeric model-side `MINUTES_TO_SCHEDULED_ARRIVAL_AT_PUSHBACK`: 29 CatBoost inputs; two categorical and 27 numeric. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | CatBoost 1.2.10; 62 trees; depth 6; learning rate 0.10; L2 leaf regularization 10; balanced class weighting. Selected from 16 configurations using five chronological folds and fold-local early stopping. |
+| 2B | Linear discriminant analysis | 01 | [lda_2b_01.ipynb](models/lda_2b_01.ipynb) | `ArrDel15` | Logistic Regression 2B-02's selected 28 source fields plus the same fold-fitted degree-3 pushback-margin spline; 105 dense prepared predictors. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | LSQR solver with fixed shrinkage 0.01, selected from ten ordinary and shrinkage LDA configurations using five chronological folds. The operating threshold is selected from held-out 2019 predictions. |
 | 2C | Logistic regression | 01 | [logistic_regression_2c_01.ipynb](models/logistic_regression_2c_01.ipynb) | `ArrDel15` | Exact 28-field 2B base plus log taxi-out and two cyclical takeoff-time fields; 102 prepared columns | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | L1 logistic regression; `C=0.1`; no class weighting |
+| 2C | Logistic regression | 02 | [logistic_regression_2c_02.ipynb](models/logistic_regression_2c_02.ipynb) | `ArrDel15` | The 27-field 2A base plus `DepDelay`, raw `TaxiOut`, and two cyclical takeoff-time fields: 31 source fields. `MINUTES_TO_SCHEDULED_ARRIVAL = CRSElapsedTime - DepDelay - TaxiOut` is calculated in the notebook and represented by a degree-3 spline with five fold-fitted quantile knots; 108 prepared predictors. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | The three representations are screened with fixed L1 logistic regression (`C=0.1`, no class weighting). The selected raw-taxi spline variant is then tuned over 12 practical configurations and retains L1, `C=0.1`, and no class weighting. `C=10` is omitted after the initial run produced impractically long fits and did not win Experiment 01. |
+| 2C | Logistic regression | 03 | [logistic_regression_2c_03.ipynb](models/logistic_regression_2c_03.ipynb) | `ArrDel15` | Experiment 02's selected 31-field raw-taxi source allowlist plus the same fold-fitted degree-3 schedule-margin spline; 108 prepared predictors. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | Ridge L2 logistic regression with the `lbfgs` solver; `C=0.01`; no class weighting. Selected from ten configurations comprising five regularization strengths with and without balanced class weights using five chronological folds. |
+| 2C | Gaussian Naive Bayes | 01 | [gaussian_naive_bayes_2c_01.ipynb](models/gaussian_naive_bayes_2c_01.ipynb) | `ArrDel15` | Logistic Regression 2C-02's selected 31-field raw-taxi source allowlist plus the same fold-fitted degree-3 schedule-margin spline; 108 dense prepared predictors. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | Gaussian Naive Bayes with empirical class priors and `var_smoothing=0.01`. The smoothing value is selected from 12 values from `1e-12` through `1e-1` using five chronological 2019 folds. |
+| 2C | Support vector machine | 01 | [svm_2c_01.ipynb](models/svm_2c_01.ipynb) | `ArrDel15` | Logistic Regression 2C-02's selected 31-field raw-taxi source allowlist plus the same fold-fitted degree-3 schedule-margin spline; 108 dense prepared predictors. Approximate RBF candidates use 256 temporary random Fourier components. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | Linear SVM with squared-hinge loss, L2 penalty, `C=0.001`, and no class weighting. Selected over the linear and approximate RBF candidates using five chronological folds. A sigmoid map fitted to held-out 2019 decision scores supplies probabilities. |
+| 2C | Linear discriminant analysis | 01 | [lda_2c_01.ipynb](models/lda_2c_01.ipynb) | `ArrDel15` | Logistic Regression 2C-02's selected 31-field raw-taxi source allowlist plus the same fold-fitted degree-3 schedule-margin spline; 108 dense prepared predictors. No new feature dataset is created. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | LSQR solver with fixed shrinkage 0.01, selected from ten ordinary and shrinkage LDA configurations using five chronological folds. The operating threshold is selected from held-out 2019 predictions. |
+| 2C | CatBoost | 01 | [catboost_2c_01.ipynb](models/catboost_2c_01.ipynb) | `ArrDel15` | Logistic Regression 2C-01's exact 31-field allowlist; two categorical and 29 numeric fields handled without one-hot encoding or scaling | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | CatBoost 1.2.10; 406 trees selected as the median fold-best count; depth 6; learning rate 0.03; L2 leaf regularization 10; no class weighting. Selected from 16 configurations with five chronological folds and fold-local early stopping. |
+| 2C | CatBoost | 02 | [catboost_2c_02.ipynb](models/catboost_2c_02.ipynb) | `ArrDel15` | The same 31 source fields as Logistic Regression 2C-02's selected raw-taxi allowlist, plus model-side `MINUTES_TO_SCHEDULED_ARRIVAL = CRSElapsedTime - DepDelay - TaxiOut`: 32 CatBoost inputs. No spline and no new feature dataset are used. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | CatBoost 1.2.10; 364 trees selected as the median fold-best count; depth 6; learning rate 0.03; L2 leaf regularization 10; no class weighting. The two representations are screened with the fixed Experiment 01 classifier. The selected raw-taxi schedule-margin representation is then tuned over eight configurations with five chronological folds and fold-local early stopping. |
+| 2C | Multilayer perceptron | 01 | [mlp_2c_01.ipynb](models/mlp_2c_01.ipynb) | `ArrDel15` | Logistic Regression 2C-02's selected 31-field raw-taxi source allowlist plus a fold-fitted degree-3 schedule-margin spline with five quantile knots; 108 prepared inputs after imputation, missing indicators, one-hot encoding, and scaling. No new feature dataset is used. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | TensorFlow 2.21 Keras MLP; hidden layers `(64, 32)` with ReLU, batch normalization, dropout 0.25/0.20, and L2 `0.0001`; Adam learning rate `0.001`; batch size 512; 11 epochs selected as the median fold-best count; 9,473 trainable parameters. Selected from six configurations with five chronological folds and fold-local PR-AUC early stopping. |
+| 2C | CatBoost / MLP blend | 01 | [ensemble_2c_01.ipynb](models/ensemble_2c_01.ipynb) | `ArrDel15` | Aligned probabilities from CatBoost 2C-02's 32 inputs and MLP 2C-01's 108 prepared inputs. Both fixed components begin with the same 31 raw-taxi source fields. No combined feature or prediction dataset is written. | 2019: the same 107,354 JFK arrivals; delay rate 0.2029 | 2023: the same 109,947 JFK arrivals; delay rate 0.2463 | Fixed component configurations and identical five chronological folds. A weighted arithmetic mean of 0.50 CatBoost and 0.50 MLP is selected from five predeclared weights by mean 2019 fold AP. The 0.38 threshold is selected from aligned 2019 out-of-fold probabilities. Neither component is retuned. |
 
 ## Ranking and calibration results
 
@@ -72,15 +88,31 @@ precision and ROC AUC are better; a lower Brier score means the predicted probab
 | 1A | Decision tree | 02 | 0.3027 | 0.2364 | 0.3689 | 0.6638 | 0.1726 |
 | 1A | Random forest | 01 | 0.3327 | 0.2364 | 0.3970 | 0.6812 | 0.1700 |
 | 1A | Random forest | 02 | 0.6996 | 0.2364 | 0.7409 | 0.8477 | 0.1111 |
+| 1A | Linear discriminant analysis | 01 | 0.6566 | 0.2364 | 0.7032 | 0.8261 | 0.1239 |
 | 1A | CatBoost | 01 | 0.3459 | 0.2364 | 0.4104 | 0.6886 | 0.1692 |
 | 1A | CatBoost | 02 | 0.7025 | 0.2364 | 0.7473 | 0.8511 | 0.1100 |
 | 1A | CatBoost | 03 | 0.7010 | 0.2364 | 0.7473 | 0.8511 | 0.1100 |
 | 1A | CatBoost | 04 | 0.7018 | 0.2364 | 0.7526 | 0.8546 | 0.1086 |
+| 1A | CatBoost | 05 | 0.7018 | 0.2364 | 0.7526 | 0.8546 | 0.1086 |
 | 1A | Multilayer perceptron | 02 | 0.6963 | 0.2364 | 0.7405 | 0.8446 | 0.1112 |
 | 1A | CatBoost / MLP blend | 01 | 0.7047 | 0.2364 | 0.7532 | 0.8544 | 0.1085 |
 | 2A | Logistic regression | 01 | 0.3128 | 0.2463 | 0.4019 | 0.6744 | 0.1741 |
+| 2A | CatBoost | 01 | 0.3283 | 0.2463 | 0.3954 | 0.6714 | 0.2174 |
+| 2A | CatBoost | 02 | 0.3194 | 0.2463 | 0.3975 | 0.6715 | 0.2206 |
 | 2B | Logistic regression | 01 | 0.8644 | 0.2463 | 0.8682 | 0.9126 | 0.0755 |
+| 2B | Logistic regression | 02 | 0.8653 | 0.2463 | 0.8704 | 0.9150 | 0.0748 |
+| 2B | CatBoost | 01 | 0.8714 | 0.2463 | 0.8715 | 0.9178 | 0.0869 |
+| 2B | Linear discriminant analysis | 01 | 0.8507 | 0.2463 | 0.8661 | 0.9119 | 0.1010 |
 | 2C | Logistic regression | 01 | 0.9013 | 0.2463 | 0.9090 | 0.9457 | 0.0616 |
+| 2C | Logistic regression | 02 | 0.9081 | 0.2463 | 0.9145 | 0.9491 | 0.0594 |
+| 2C | Logistic regression | 03 | 0.9066 | 0.2463 | 0.9117 | 0.9477 | 0.0612 |
+| 2C | Gaussian Naive Bayes | 01 | 0.7937 | 0.2463 | 0.8282 | 0.8867 | 0.2226 |
+| 2C | Support vector machine | 01 | 0.9077 | 0.2463 | 0.9116 | 0.9473 | 0.0604 |
+| 2C | Linear discriminant analysis | 01 | 0.8889 | 0.2463 | 0.8979 | 0.9394 | 0.0884 |
+| 2C | CatBoost | 01 | 0.9102 | 0.2463 | 0.9080 | 0.9461 | 0.0626 |
+| 2C | CatBoost | 02 | 0.9112 | 0.2463 | 0.9092 | 0.9466 | 0.0620 |
+| 2C | Multilayer perceptron | 01 | 0.9079 | 0.2463 | 0.9149 | 0.9501 | 0.0605 |
+| 2C | CatBoost / MLP blend | 01 | 0.9131 | 0.2463 | 0.9143 | 0.9500 | 0.0603 |
 
 Calibration Experiment 01 uses a separate forward-chained comparison because its selection objective is probability
 reliability rather than ranking. Fold 1 supplies the first independent calibration rows; methods are assessed on folds
@@ -127,6 +159,8 @@ prediction changes.
 | 1A | Random forest | 01 | 2023 external validation | Training-selected F1 | 0.21 | 0.6594 | 0.6308 | 0.3616 | 0.5766 | 0.4445 | 0.2293 |
 | 1A | Random forest | 02 | 2023 external validation | Default | 0.50 | 0.8528 | 0.7107 | 0.8733 | 0.4412 | 0.5863 | 0.5521 |
 | 1A | Random forest | 02 | 2023 external validation | Training-selected F1 | 0.31 | 0.8452 | 0.7570 | 0.7069 | 0.5896 | 0.6429 | 0.5488 |
+| 1A | Linear discriminant analysis | 01 | 2023 external validation | Default | 0.50 | 0.8415 | 0.7023 | 0.8009 | 0.4384 | 0.5666 | 0.5122 |
+| 1A | Linear discriminant analysis | 01 | 2023 external validation | Training-selected F1 | 0.182804 | 0.8162 | 0.7438 | 0.6121 | 0.6066 | 0.6093 | 0.4892 |
 | 1A | CatBoost | 01 | 2023 external validation | Default | 0.50 | 0.7655 | 0.5065 | 0.6706 | 0.0153 | 0.0299 | 0.0752 |
 | 1A | CatBoost | 01 | 2023 external validation | Training-selected F1 | 0.19 | 0.6594 | 0.6349 | 0.3637 | 0.5884 | 0.4495 | 0.2358 |
 | 1A | CatBoost | 02 | 2023 external validation | Default | 0.50 | 0.8548 | 0.7139 | 0.8796 | 0.4467 | 0.5925 | 0.5592 |
@@ -135,424 +169,129 @@ prediction changes.
 | 1A | CatBoost | 03 | 2023 external validation | Training-selected F1 | 0.32 | 0.8510 | 0.7516 | 0.7443 | 0.5631 | 0.6411 | 0.5579 |
 | 1A | CatBoost | 04 | 2023 external validation | Default | 0.50 | 0.8567 | 0.7186 | 0.8785 | 0.4567 | 0.6010 | 0.5657 |
 | 1A | CatBoost | 04 | 2023 external validation | Training-selected F1 | 0.31 | 0.8516 | 0.7598 | 0.7327 | 0.5858 | 0.6511 | 0.5640 |
+| 1A | CatBoost | 05 | 2023 external validation | Default | 0.50 | 0.8567 | 0.7186 | 0.8785 | 0.4567 | 0.6010 | 0.5657 |
+| 1A | CatBoost | 05 | 2023 external validation | Training-selected F1 | 0.307829 | 0.8513 | 0.7603 | 0.7306 | 0.5877 | 0.6514 | 0.5637 |
 | 1A | Multilayer perceptron | 02 | 2023 external validation | Default | 0.50 | 0.8545 | 0.7132 | 0.8794 | 0.4454 | 0.5913 | 0.5581 |
 | 1A | Multilayer perceptron | 02 | 2023 external validation | Training-selected F1 | 0.30 | 0.8468 | 0.7530 | 0.7204 | 0.5751 | 0.6396 | 0.5495 |
 | 1A | CatBoost / MLP blend | 01 | 2023 external validation | Default | 0.50 | 0.8570 | 0.7180 | 0.8843 | 0.4544 | 0.6003 | 0.5671 |
 | 1A | CatBoost / MLP blend | 01 | 2023 external validation | Training-selected F1 | 0.31 | 0.8524 | 0.7595 | 0.7372 | 0.5834 | 0.6514 | 0.5655 |
 | 2A | Logistic regression | 01 | 2023 external validation | Default | 0.50 | 0.7569 | 0.5116 | 0.6488 | 0.0282 | 0.0540 | 0.0971 |
 | 2A | Logistic regression | 01 | 2023 external validation | Training-selected F1 | 0.22 | 0.6515 | 0.6212 | 0.3650 | 0.5616 | 0.4425 | 0.2153 |
+| 2A | CatBoost | 01 | 2023 external validation | Default | 0.50 | 0.6517 | 0.6212 | 0.3652 | 0.5611 | 0.4424 | 0.2154 |
+| 2A | CatBoost | 01 | 2023 external validation | Training-selected F1 | 0.41 | 0.5481 | 0.6185 | 0.3223 | 0.7572 | 0.4522 | 0.2068 |
+| 2A | CatBoost | 02 | 2023 external validation | Default | 0.50 | 0.6411 | 0.6228 | 0.3598 | 0.5868 | 0.4461 | 0.2159 |
+| 2A | CatBoost | 02 | 2023 external validation | Training-selected F1 | 0.45 | 0.5798 | 0.6218 | 0.3331 | 0.7047 | 0.4524 | 0.2101 |
 | 2B | Logistic regression | 01 | 2023 external validation | Default | 0.50 | 0.9050 | 0.8281 | 0.9155 | 0.6766 | 0.7781 | 0.7327 |
 | 2B | Logistic regression | 01 | 2023 external validation | Training-selected F1 | 0.37 | 0.9050 | 0.8423 | 0.8729 | 0.7189 | 0.7884 | 0.7336 |
+| 2B | Logistic regression | 02 | 2023 external validation | Default | 0.50 | 0.9060 | 0.8297 | 0.9178 | 0.6793 | 0.7807 | 0.7359 |
+| 2B | Logistic regression | 02 | 2023 external validation | Training-selected F1 | 0.39 | 0.9058 | 0.8412 | 0.8812 | 0.7138 | 0.7887 | 0.7357 |
+| 2B | CatBoost | 01 | 2023 external validation | Default | 0.50 | 0.8948 | 0.8519 | 0.7978 | 0.7674 | 0.7823 | 0.7132 |
+| 2B | CatBoost | 01 | 2023 external validation | Training-selected F1 | 0.50 | 0.8948 | 0.8519 | 0.7978 | 0.7674 | 0.7823 | 0.7132 |
+| 2B | Linear discriminant analysis | 01 | 2023 external validation | Default | 0.50 | 0.8729 | 0.7429 | 0.9939 | 0.4869 | 0.6536 | 0.6427 |
+| 2B | Linear discriminant analysis | 01 | 2023 external validation | Training-selected F1 | 0.128015 | 0.9043 | 0.8352 | 0.8888 | 0.6990 | 0.7826 | 0.7309 |
 | 2C | Logistic regression | 01 | 2023 external validation | Default | 0.50 | 0.9206 | 0.8608 | 0.9190 | 0.7431 | 0.8217 | 0.7786 |
 | 2C | Logistic regression | 01 | 2023 external validation | Training-selected F1 | 0.49 | 0.9206 | 0.8620 | 0.9156 | 0.7464 | 0.8224 | 0.7786 |
-
-### Current Model 1A logistic-regression comparison
-
-Experiment 02 has the best mean average precision in the 2019 time-based validation (0.3108), but that advantage does
-not continue in 2023. Experiment 03 improves on Experiment 02 by 0.0051 in 2023 average precision and by 0.0005 in Brier
-score. However, it remains below Experiment 01 by 0.0039 in average precision and 0.0063 in ROC AUC, and its Brier score
-is 0.0010 higher. In the 2019 search, none of the top-50, top-100, or top-200 feature sets wins; the best version uses all
-1,824 nonconstant encoded fields with an L1 classifier. At thresholds chosen from the training data, Experiments 02 and
-03 have nearly the same F1, while Experiment 01 has the best combination of F1, ranking, and probability quality.
-
-Experiment 01 therefore remains the Model 1A raw logistic-regression baseline. The current evidence does not support
-choosing either general engineered feature set, and a larger general-purpose logistic feature-selection search is not
-the next priority.
-
-Experiment 04 tests a narrower operational hypothesis and produces a clearer improvement. Its training-only search
-compares the three-field compact backlog set with all eight backlog fields. Both variants round to 0.3852 mean 2019
-temporal-validation average precision, and the compact version is selected. The selected L1 model uses `C=0.01`, no
-class weighting, and 40 nonzero coefficients among 103 prepared columns. Relative to Experiment
-01, its 2019 CV average precision increases by 0.0784. The improvement persists in 2023: average precision increases by
-0.0225 to 0.4184, ROC AUC increases by 0.0078 to 0.6903, and Brier score decreases by 0.0039 to 0.1653. At the threshold
-selected from 2019, F1 increases from 0.4496 to 0.4503 and MCC from 0.2255 to 0.2367.
-
-`BACKLOG_W30_PENDING_COUNT` is the largest standardized coefficient in Experiment 04 at 0.3339. Completed count is
-negative at -0.1898 and mean signed recent departure delay is positive at 0.1675; these are associations within a
-correlated feature set, not causal effects. Experiment 04 was the preferred Model 1A logistic feature set before the
-rotation experiment and remains the preferred backlog design, while Experiment 01 remains its raw reference. BTS can
-reconstruct the backlog features for historical modeling, but a live model would need timely gate-out events to know
-which earlier-scheduled flights are completed or still pending.
-
-Experiment 05 produces the first large Model 1A step-change. The training-only search compares five compact rotation
-fields with all 13 generated fields and compares all nonconstant columns with L1-ranked top-50, top-100, and top-200
-sets. The full manifest wins with mean 2019 temporal-validation average precision 0.5930, 0.2078 above Experiment 04.
-The selected final classifier is L2 logistic regression with `C=1`, no class weighting, and all 172 prepared columns.
-The top-200 candidate is effectively identical because only 172 nonconstant columns exist; top-50 and top-100 do not
-improve average precision.
-
-The improvement persists in 2023. Relative to Experiment 04, average precision increases by 0.2331 to 0.6515, ROC AUC
-increases by 0.1029 to 0.7932, and Brier score decreases by 0.0337 to 0.1316. At the threshold of 0.26 selected from
-2019, F1 reaches 0.5644 and MCC 0.4407, improvements of 0.1141 and 0.2040. At the default threshold, precision is
-0.8539 and MCC is 0.4483, showing that the rotation model also identifies a smaller high-confidence delayed group.
-
-The 2,995 validation flights whose assigned inbound aircraft had not arrived by scheduled departure represent 2.72%
-of 2023 rows and have a 99.63% departure-delay rate. This strong state is not the only source of discrimination: after
-those rows are excluded, Experiment 05 still has average precision 0.5620, ROC AUC 0.7665, and Brier score 0.1352 on the
-remaining 106,988 rows. Those subgroup scores describe a different population and are diagnostic rather than a direct
-leaderboard comparison.
-
-Before the full-history sensitivity study, Experiment 05 was the preferred retrospective Model 1A logistic design. It
-was not yet a preferred deployable design: BTS identifies the aircraft that ultimately operated each departure rather
-than proving which tail
-was assigned at the prediction cutoff. A timestamped aircraft-assignment feed must validate that assumption. Until
-then, all rotation performance—including subgroup diagnostics—must be described as an upper bound. Experiment 06 next
-tests the history and feature sensitivities under the same assignment caveat.
-
-Experiment 06 isolates the effect of rotation-history completeness and feature availability without retuning the
-classifier. All six variants use Experiment 05's L2 logistic regression with `C=1`, no class weighting, and every
-nonconstant prepared column. The cohort-history control exactly reproduces Experiment 05's 0.5930 training AP and
-0.6515 validation AP, confirming the controlled implementation. The raw baseline reaches 0.3988 validation AP.
-Full-history schedule-only features raise AP to 0.4417; live rotation state without the observed inbound outcomes
-raises it to 0.5658. This demonstrates that scheduled leg order contains useful information, but knowing whether the
-assigned aircraft has actually arrived provides most of the rotation improvement.
-
-Replacing cohort-limited history with all eligible raw JFK BTS movements raises mean 2019 temporal AP from 0.5930 to
-0.6292 and 2023 AP from 0.6515 to 0.6848. ROC AUC rises from 0.7932 to 0.8091 and Brier score falls from 0.1316 to
-0.1245. The improvement is concentrated where history matters: among the 12,166 validation rows whose preceding
-inbound reconstruction changes, AP rises from 0.3334 to 0.7203. On unchanged-history rows the two designs are
-essentially equal. The result therefore supports fuller event history rather than a coincidental global model shift.
-
-The predeclared 24-hour sensitivity performs best. It preserves every target row but replaces rotation values for
-matches with scheduled turns over 24 hours with a distinct `LONG_TURN_EXCLUDED` state. Training AP reaches 0.6375;
-2023 AP reaches 0.6960, ROC AUC 0.8188, and Brier score 0.1222. At the 0.31 threshold selected from 2019, F1 is 0.5930
-and MCC 0.4981. After the 3,565 full-history `NOT_ARRIVED` rows are excluded, AP remains 0.6034, so the improvement is
-not limited to the nearly deterministic late-aircraft group. Experiment 06 becomes the preferred retrospective Model
-1A logistic design, while the final-tail assignment caveat remains unchanged. A live deployment still requires a
-timestamped aircraft-assignment feed and timely arrival events.
-
-Experiment 07 tests whether the selected compact backlog state remains useful after conditioning on Experiment 06's
-flight-specific rotation information. The rotation-only control exactly reproduces Experiment 06: mean 2019 temporal
-AP is 0.6375 and 2023 AP is 0.6960. Adding only 30-minute pending count, completed count, and mean signed recent
-departure delay raises training AP to 0.6523 and 2023 AP to 0.7020. ROC AUC rises from 0.8188 to 0.8242 and Brier score
-falls from 0.1222 to 0.1202. The improvement is modest but consistent across training and development data.
-
-The added information is not confined to the nearly deterministic late-aircraft cases. Excluding `NOT_ARRIVED`, AP
-rises from 0.6034 to 0.6104; among already-arrived rotations it rises from 0.5806 to 0.5869. Backlog contributes most
-clearly when rotation is unavailable or excluded, where AP increases from 0.6305 to 0.6458 and Brier score falls from
-0.2076 to 0.2014. At the unchanged 0.31 training-selected threshold, combined-model F1 reaches 0.6036 and MCC 0.5016.
-The standardized backlog coefficients retain the same plausible directions as Experiment 04: pending count is
-positive (0.2401), completed count negative (-0.1179), and recent signed delay positive (0.1146).
-
-Experiment 07 therefore became the preferred retrospective Model 1A logistic design at that stage. The feature families are
-operationally complementary: rotation describes whether the assigned aircraft is available, while backlog represents
-airport-wide pressure on an available aircraft. This conclusion does not remove the final-tail assignment limitation;
-the combined result remains an upper bound until aircraft assignment can be verified at the prediction cutoff.
-
-Experiment 08 repeats the controlled combination with a 60-minute backlog window. The rotation-only control again
-reproduces Experiment 06. W60 raises mean 2019 temporal AP to 0.6577 and 2023 AP to 0.7053, exceeding W30 by 0.0054 and
-0.0033 respectively. Relative to Experiment 07, ROC AUC rises from 0.8242 to 0.8267 and Brier score falls from 0.1202
-to 0.1192. At the 0.29 threshold selected from 2019, F1 reaches 0.6094; the default-threshold MCC reaches 0.5164.
-
-The broader window improves every diagnostic subgroup. Excluding `NOT_ARRIVED`, W60 AP is 0.6146 versus 0.6104 for
-W30; among already-arrived rotations it is 0.5904 versus 0.5869. Where rotation is unavailable or excluded, W60 AP is
-0.6565 versus 0.6458 and its Brier score is 0.1986 versus 0.2014. The W60 coefficient signs remain consistent:
-pending count is positive (0.2604), completed count negative (-0.1206), and recent signed delay positive (0.1573).
-Experiment 08 therefore replaces Experiment 07 as the preferred retrospective Model 1A logistic design. The gain is
-incremental rather than transformative, but it is consistent in both years and supports sustained one-hour airport
-pressure as slightly more informative than the immediate 30-minute snapshot.
-
-### Current Model 1A decision-tree comparison
-
-Experiment 02 improves mean 2019 time-based validation average precision by 0.0066. The improvement continues in 2023
-but remains small: average precision rises by 0.0006 and ROC AUC by 0.0035. The Brier score improves more clearly, from
-0.2160 to 0.1726. That difference is not caused by the feature set alone, because Experiment 01 uses class weighting and
-Experiment 02 does not. At their training-selected thresholds, the two trees are nearly equal; Experiment 02 improves
-F1 by 0.0012 and MCC by 0.0011.
-
-The tree uses the calculated traffic features. ASPM fields provide 0.0872 of Experiment 02's total impurity-based
-feature importance, compared with 0.0425 for the six source ASPM fields in Experiment 01.
-`ASPM_MAX_HOURLY_TRAFFIC` provides 0.0571 by itself and ranks fourth among the source features. This does not show that
-traffic caused a delay, and related fields can share or exchange importance. It does show that the peak-traffic summary
-helps the tree make splits more efficiently than the source counts alone. Scheduled departure time remains the most
-important source feature.
-
-Experiment 02 is therefore the preferred single-tree feature set and the starting point for the planned Random Forest
-and CatBoost experiments. Its ranking improvement is too small to claim a clear overall gain. Both decision trees remain
-below the raw logistic baseline in 2023 average precision, ROC AUC, and F1 at the training-selected threshold. The next
-step is to test whether tree ensembles make better use of the traffic and weather relationships than a single tree.
-
-### Current Model 1A random-forest comparison
-
-Random Forest Experiment 01 carries forward Decision Tree Experiment 02's exact 34-field compact non-backlog feature
-manifest. The five-fold 2019 search selects 400 trees, depth 15, minimum leaf size 100, square-root feature sampling,
-and no class weighting. The selected forest has 265 prepared columns and an out-of-bag accuracy diagnostic of 0.8162;
-the out-of-bag score is reported only as a diagnostic and did not select the model or its threshold.
-
-The ensemble produces a clear improvement over its single-tree reference. Mean 2019 temporal-validation average
-precision rises by 0.0300, from 0.3027 to 0.3327. In 2023, average precision rises by 0.0281 to 0.3970, ROC AUC rises by
-0.0174 to 0.6812, and Brier score falls by 0.0026 to 0.1700. At the threshold selected from held-out 2019 predictions,
-F1 rises by 0.0107 to 0.4445 and MCC rises by 0.0156 to 0.2293. The forest therefore uses the compact traffic, weather,
-calendar, and schedule representation more effectively than one bounded tree.
-
-The selected forest is unweighted, so its default 0.50 threshold detects very few delayed flights: 2023 recall is only
-0.0052. The training-selected 0.21 threshold is essential for the intended classification trade-off, raising recall to
-0.5766 with precision 0.3616. This threshold was selected exclusively from 2019 out-of-fold predictions; the 2023
-labels did not influence it.
-
-Scheduled departure time has the largest aggregated impurity importance. Time of day ranks next, followed by the
-three-hour ASPM scheduled-arrival total; several other ASPM arrival, departure, trend, and peak fields also appear among
-the leading predictors. The forest is approximately tied with raw Logistic Regression Experiment 01 in ranking quality:
-its 2023 average precision is 0.0011 higher, while ROC AUC is 0.0013 lower and Brier score is 0.0008 higher. It remains
-below the backlog-enhanced Logistic Regression Experiment 04 in average precision, ROC AUC, Brier score, and
-training-selected F1. Random Forest Experiment 01 is consequently a useful non-backlog ensemble baseline, not the
-current preferred Model 1A result. Random Forest Experiment 02 now supplies the separate append-only rotation and
-dual-scope W60 comparison described below.
-
-### Current Model 1A exact-manifest Random Forest comparison
-
-Random Forest Experiment 02 supplies the missing controlled comparison. It uses CatBoost 04's exact 41 source fields,
-the same full-history rotation construction and 24-hour mask, the same compact airport-wide W60 fields, and the same
-five same-airline W60 fields. Its six categorical fields are imputed and one-hot encoded within each fold; the 35
-numeric fields receive fold-local median imputation and missing indicators, producing 210 prepared fields in the final
-fit. The 2019 search compares 16 combinations of depth, leaf size, feature sampling, and class weighting while holding
-the ensemble at 300 bootstrap trees.
-
-The selected forest uses depth 18, minimum leaf size 25, 50% feature sampling, and no class weighting. Its mean 2019
-temporal AP is 0.6996, only 0.0022 below CatBoost 04's 0.7018. This is a substantial improvement over Random Forest 01's
-0.3327 and demonstrates that the rotation and backlog features—not merely CatBoost—supply most of the predictive
-step-change. The selected forest's out-of-bag accuracy is 0.8840, but that value is diagnostic only and does not select
-the model or threshold. The 80-fit search and all-2019 refit require 1,251.2 seconds, making even this bounded search
-computationally substantial.
-
-CatBoost separates more clearly in the independent year. Random Forest 02 reaches 2023 AP 0.7409, ROC AUC 0.8477, and
-Brier score 0.1111. CatBoost 04 is better by 0.0117 AP and 0.0069 ROC AUC, with Brier score lower by 0.0025. At their
-common independently selected threshold of 0.31, the forest obtains precision 0.7069, recall 0.5896, F1 0.6429, and
-MCC 0.5488; CatBoost obtains 0.7327, 0.5858, 0.6511, and 0.5640 respectively. CatBoost therefore retains better
-ranking, probability quality, F1, and MCC, while the forest trades some precision for slightly higher recall.
-
-Rotation fields dominate the forest's source importance: actual and log actual turn duration rank first and second,
-followed by rotation status and the not-arrived indicator. Airport-wide pending count ranks eighth, mean signed delay
-twelfth, same-airline mean delay eighteenth, and same-airline pending share nineteenth. These values are not causal,
-but they confirm that the forest actively uses every operational feature family. Random Forest 02 is retained as a
-strong independent comparator and feature-validation result; CatBoost 04 remains the preferred Model 1A classifier.
-The final-tail assignment caveat remains, no combined dataset is written, and 2024 remains untouched.
-
-### Current Model 1A CatBoost comparison
-
-CatBoost Experiment 01 uses the same 34-field compact non-backlog manifest as the preferred single tree and the Random
-Forest baseline. Unlike those scikit-learn models, CatBoost receives the six categorical fields directly and handles
-its 28 numeric fields without scaling. The 2019 temporal search independently applies early stopping in every fold and
-selects depth 6, learning rate 0.10, L2 leaf regularization 10, and no class weighting. The median fold-best count is 45
-trees, which is then fixed while the final model is trained on all 2019 rows without using any 2023 outcome.
-Balanced automatic class weighting was included in the same fold-local search but did not improve mean average
-precision; no validation or test rows were reweighted or resampled.
-
-This is the strongest of the three non-backlog tree methods tested so far. Relative to Random Forest Experiment 01,
-mean 2019 temporal-validation average precision rises by 0.0132 to 0.3459. On 2023, average precision rises by 0.0134
-to 0.4104, ROC AUC rises by 0.0074 to 0.6886, and Brier score falls by 0.0008 to 0.1692. At the 0.19 threshold selected
-from held-out 2019 predictions, precision is 0.3637, recall is 0.5884, F1 is 0.4495, and MCC is 0.2358. Compared with
-the Random Forest at its independently selected threshold, CatBoost improves F1 by 0.0050 and MCC by 0.0065.
-
-CatBoost also improves over raw Logistic Regression Experiment 01 by 0.0145 in 2023 average precision and 0.0061 in
-ROC AUC, while matching its Brier score to four decimal places. Their training-selected F1 scores are nearly identical:
-0.4495 for CatBoost and 0.4496 for logistic regression. The compact non-backlog CatBoost result therefore improves
-ranking without materially changing the final thresholded F1.
-
-Scheduled departure time has the largest CatBoost prediction-value-change importance, followed by temperature, month,
-and the three-hour ASPM scheduled-arrival total. Airline, airline-destination, time-of-day, and numerous ASPM traffic
-fields also receive importance, supporting the value of native categorical handling and nonlinear interactions. These
-importance values describe the fitted model and do not show that any feature caused a delay.
-
-Backlog Logistic Regression Experiment 04 remains the strongest completed Model 1A result: its 2023 average precision
-is 0.0080 higher, ROC AUC is 0.0017 higher, Brier score is 0.0039 lower, and training-selected F1 is 0.0008 higher than
-CatBoost Experiment 01. CatBoost is now the preferred non-backlog nonlinear model and provides a clean reference for a
-separate append-only backlog CatBoost experiment. The early-stopped best iteration varies substantially across the
-five 2019 folds, so a future CatBoost tuning expansion should remain modest and retain chronological validation rather
-than treating 45 trees as a universally stable optimum.
-
-CatBoost Experiment 02 applies the nonlinear model to Logistic Regression Experiment 08's exact source-feature
-hypothesis: the 20-field raw baseline, all 13 full-history rotation fields with the 24-hour long-turn mask, and the
-three compact W60 backlog fields. The six categorical fields are handled natively and the 30 numeric fields are not
-scaled. The five-fold 2019 temporal search compares 16 configurations with fold-local early stopping. It selects depth
-6, learning rate 0.03, L2 leaf regularization 3, no class weighting, and 683 trees, the median best count across folds.
-Its mean temporal-validation average precision is 0.7025. The existing rotation and backlog datasets are paired in
-memory after strict row-identity validation; no combined feature dataset is created.
-
-This produces a material improvement over Logistic Regression Experiment 08. On the same 2023 rows, average precision
-rises by 0.0420 to 0.7473, ROC AUC rises by 0.0244 to 0.8511, and Brier score falls by 0.0092 to 0.1100. At the 0.32
-threshold selected only from held-out 2019 predictions, F1 reaches 0.6411 and MCC 0.5579, improvements of 0.0317 and
-0.0585 over Logistic Regression Experiment 08 at its independently selected threshold. At the default threshold,
-precision is 0.8796, recall 0.4467, F1 0.5925, and MCC 0.5592.
-
-The improvement is not confined to the nearly deterministic late-aircraft cases. After the 3,565 full-history
-`NOT_ARRIVED` rows are excluded, average precision is 0.6732, compared with 0.6146 for Logistic Regression Experiment
-08. Among already-arrived rotations it is 0.6568 versus 0.5904; where rotation is unavailable or excluded it is 0.6884
-versus 0.6565. The leading CatBoost importance values are actual turn time, its log transform, rotation status, inbound
-arrival delay, and scheduled turn time. W60 pending count ranks sixth, W60 mean signed delay twelfth, and W60 completed
-count twentieth, so all three backlog fields contribute to the fitted nonlinear model. Importance describes predictive
-use within this fitted model, not causation.
-
-CatBoost Experiment 02 is therefore the preferred completed retrospective Model 1A candidate. Its gain supports the
-hypothesis that nonlinear interactions among aircraft availability, turn timing, airport pressure, schedule, carrier,
-and route contain information that logistic regression cannot represent. It does not remove the deployment caveat:
-the final BTS tail number may not equal the aircraft assigned at the prediction cutoff. The result remains an upper
-bound until a timestamped assignment feed and timely operational events are available. The 2024 final-test data remains
-untouched.
-
-CatBoost Experiment 03 tests all eight existing W60 backlog fields without retuning the classifier. It fixes Experiment
-02's 683 trees, depth 6, learning rate 0.03, L2 leaf regularization 3, no class weighting, rows, temporal folds,
-full-history rotation manifest, and 24-hour long-turn mask. The compact control has 36 source fields; the expanded
-variant has 41 and adds scheduled count, delayed-departure count, delay rate, nonnegative mean delay, and total delay
-minutes. Both feature paths are paired in memory from the established files, and no new combined dataset is created.
-
-The compact manifest wins the predeclared 2019 selection measure. Its mean fixed-model temporal AP is 0.7010 versus
-0.7006 for the full manifest. Compact is higher in three folds, full is higher in one, and the remaining fold is equal
-to four decimal places. The aggregated fixed-model out-of-fold probabilities tell a slightly different but
-non-selecting story—full AP is 0.7137 versus compact AP 0.7134—because fold sizes and prevalences differ. The experiment
-uses the mean of the five equally weighted chronological fold scores, consistent with the project protocol, so compact
-is selected before 2023 is examined.
-
-The outside-year result confirms that there is no ranking or probability gain. On 2023, full W60 has AP 0.7472 versus
-0.7473 for compact, ROC AUC 0.8508 versus 0.8511, and Brier score 0.1101 versus 0.1100. Full W60's independently selected
-0.31 threshold produces F1 0.6428 versus 0.6411 for compact, but MCC is slightly lower, 0.5570 versus 0.5579, and the
-threshold-dependent difference cannot override the training-only feature selection. Full W60 is also fractionally
-lower after `NOT_ARRIVED` is excluded and where rotation is unavailable or excluded; already-arrived AP rounds to
-0.6568 for both variants.
-
-The five additional fields receive nonzero fitted importance in the rejected full model, led by nonnegative mean delay
-at 0.8738. Scheduled count, delay rate, total delay minutes, and delayed-departure count have importance 0.4464, 0.4364,
-0.3482, and 0.1117. Their presence does not improve held-out ranking, which is consistent with their substantial
-algebraic overlap with pending count, completed count, and mean signed delay. Experiment 03 therefore retains CatBoost
-02's compact W60 manifest and does not replace the preferred retrospective Model 1A candidate. The negative ablation is
-useful evidence that simply adding every available backlog summary is not beneficial. The final-tail assignment caveat
-and untouched 2024 final-test status remain unchanged.
-
-### Current Model 1A neural-network comparison
-
-Multilayer Perceptron Experiment 02 uses the same 36 source fields, target rows, 24-hour rotation mask, 2019 temporal
-folds, and 2023 validation population as Logistic Regression Experiment 08 and CatBoost Experiment 02. Unlike CatBoost,
-the Keras model receives 202 prepared inputs after one-hot encoding six categorical fields and applying fold-local
-median imputation, missing-value indicators, and standardization to 30 numeric fields. It retains every target row.
-The bounded four-configuration search compares two network sizes and two learning rates. The smaller `(64, 32)` network
-wins with mean 2019 temporal-validation average precision 0.6963. It uses ReLU activations, batch normalization,
-dropout 0.25/0.20, L2 regularization 0.0001, Adam learning rate 0.001, batch size 512, and 16 epochs, the median
-fold-best count. The final network has 15,489 trainable parameters.
-
-The MLP confirms the nonlinear improvement. Relative to Logistic Regression Experiment 08, 2023 average precision
-rises by 0.0352 to 0.7405, ROC AUC rises by 0.0179 to 0.8446, and Brier score falls by 0.0080 to 0.1112. At its 0.30
-training-selected threshold, F1 reaches 0.6396 and MCC 0.5495, improvements of 0.0302 and 0.0501 over logistic
-regression at its independently selected threshold. At the default threshold, the MLP has 0.8794 precision, 0.4454
-recall, 0.5913 F1, and 0.5581 MCC.
-
-CatBoost Experiment 02 remains slightly stronger. Its 2023 average precision is 0.0068 higher, ROC AUC 0.0065 higher,
-and Brier score 0.0012 lower. Its training-selected F1 is 0.0015 higher and MCC 0.0084 higher. The same ordering appears
-in the rotation diagnostics: after `NOT_ARRIVED` rows are excluded, MLP average precision is 0.6649 versus CatBoost's
-0.6732; among already-arrived rotations it is 0.6495 versus 0.6568; where rotation is unavailable or excluded it is
-0.6730 versus 0.6884. These are small but consistent differences, so CatBoost remains the preferred completed
-retrospective Model 1A candidate while the MLP provides a strong independent confirmation.
-
-Grouped permutation diagnostics on a fixed 20,000-row 2023 sample identify log actual turn time as the dominant MLP
-field, followed by log inbound overdue time, log scheduled turn time, airline, and inbound arrival delay. W60 pending
-count ranks tenth, W60 mean signed delay fourteenth, and W60 completed count twentieth. All three backlog fields reduce
-average precision when shuffled, supporting their complementary value after rotation information is present. These
-permutation values describe predictive use rather than causation. The result does not yet justify a more complicated
-categorical-embedding network: the small MLP already nearly matches CatBoost, the deeper candidate did not improve 2019
-temporal average precision, and CatBoost remains easier to interpret and slightly better on every principal 2023
-ranking and probability measure.
-
-As with the rotation logistic-regression and CatBoost experiments, the final-tail assignment limitation remains. The
-MLP result is a retrospective upper bound until the aircraft assignment known at the prediction cutoff can be verified.
-The 2024 final-test data remains untouched.
-
-### Current Model 1A same-airline CatBoost comparison
-
-CatBoost Experiment 04 tests whether airline-specific operational pressure adds information after the model already
-knows aircraft rotation and airport-wide pressure. It pairs three established files in memory after exact row-identity
-validation: full-history rotation, airport-wide W60 backlog, and same-airline W60 backlog. The 36-field control exactly
-reproduces CatBoost Experiment 02. The 41-field expanded variant adds same-airline pending count, completed count, mean
-signed delay, delay rate, and pending share. Both use the fixed 683-tree CatBoost configuration, five chronological 2019
-folds, the 24-hour rotation mask, identical target rows, and separately selected training-only thresholds.
-
-The expanded variant wins the predeclared 2019 selection measure, although by a small margin. Mean temporal AP rises
-from 0.7010 to 0.7018, mean ROC AUC from 0.8442 to 0.8448, and mean Brier score improves from 0.0917 to 0.0916. It has
-higher AP in folds 1, 2, and 5 and lower AP in folds 3 and 4. Its aggregated fixed-model OOF AP is 0.7142 versus 0.7134
-for the control, and its training-selected threshold is 0.31 rather than 0.32. The modest training margin warrants
-caution, but all three training summaries move in the favorable direction.
-
-The improvement becomes clearer on the untouched 2023 development rows. Average precision rises by 0.0053 to 0.7526,
-ROC AUC by 0.0035 to 0.8546, and Brier score improves by 0.0014 to 0.1086. At the independently selected thresholds, F1
-rises from 0.6411 to 0.6511 and MCC from 0.5579 to 0.5640. At the default threshold, recall rises from 0.4467 to 0.4567,
-F1 from 0.5925 to 0.6010, and MCC from 0.5592 to 0.5657, with precision essentially preserved at 0.8785.
-
-The gain is present in every diagnostic subgroup. Excluding the 3,565 `NOT_ARRIVED` rows, AP rises from 0.6732 to
-0.6801; among already-arrived rotations it rises from 0.6568 to 0.6633. The largest gain occurs where rotation is
-unavailable or excluded: AP rises from 0.6884 to 0.6995, ROC AUC from 0.7628 to 0.7711, and Brier score improves from
-0.1912 to 0.1871. This supports the intended interpretation that same-airline state supplies complementary operational
-context rather than merely restating the nearly deterministic late-aircraft condition.
-
-All five added fields receive nonzero fitted importance. Same-airline mean signed delay ranks nineteenth overall with
-importance 1.3604, pending share twentieth at 1.3264, and pending count twenty-third at 1.1943. Delay rate and completed
-count are smaller at 0.2857 and 0.2143. Airport-wide pending count and mean delay remain more important than their
-same-airline counterparts, indicating that the scopes are complementary rather than interchangeable.
-
-CatBoost Experiment 04 therefore becomes the preferred completed retrospective Model 1A candidate. Its training gain
-is small enough that the feature family should not be expanded casually, but its consistent ranking, calibration,
-threshold, and subgroup improvements justify retaining the five-field same-airline extension. No permanent combined
-dataset is created. Deployment requires the same timely schedule and gate-out feed as the airport-wide backlog, plus
-the already-known reporting-airline code. The final-tail assignment caveat remains, and 2024 remains untouched.
-
-### Current Model 1A CatBoost/MLP blend comparison
-
-Ensemble Experiment 01 tests whether the selected CatBoost and neural-network candidates make sufficiently different
-errors for a simple probability blend to improve Model 1A. It regenerates both components on the same five
-chronological 2019 folds and identical rows. The CatBoost component uses Experiment 04's 41-field manifest and fixed
-683-tree configuration; the MLP uses Experiment 02's 36-field manifest and fixed 16-epoch `(64, 32)` configuration.
-The experiment compares five predeclared weighted arithmetic means ranging from pure CatBoost to pure MLP. Component
-models are not retuned, and the 2023 development data plays no role in choosing the weight or operating threshold.
-
-Training selects 0.75 CatBoost plus 0.25 MLP. Its mean fold AP is 0.7047, compared with 0.7018 for pure CatBoost and
-0.6934 for the fixed-epoch MLP regenerated on these aligned folds. The blend improves on CatBoost in four of five
-folds; its aggregate OOF AP is 0.7174 versus 0.7142, ROC AUC is 0.8511 versus 0.8490, and Brier score improves from
-0.0916 to 0.0911. The fixed-epoch MLP's aligned-fold figure differs from its original 0.6963 model-selection result
-because the earlier value came from fold-local early-stopped search fits. The ensemble uses the already selected
-16-epoch configuration so that the component definition is reproducible and fixed before external validation.
-
-The 2023 gain is negligible. Relative to CatBoost Experiment 04, AP rises only 0.0006 to 0.7532 and Brier score improves
-only 0.0001 to 0.1085, while ROC AUC declines 0.0002 to 0.8544. At the common training-selected threshold of 0.31, F1
-rises from 0.6511 to 0.6514 and MCC from 0.5640 to 0.5655. At the default threshold, MCC rises from 0.5657 to 0.5671,
-but F1 falls from 0.6010 to 0.6003. These movements are too small to constitute a material outside-year improvement.
-
-The subgroup evidence is also mixed. The blend raises AP by 0.0010 when `NOT_ARRIVED` rows are excluded and by 0.0014
-among already-arrived rotations, with essentially unchanged ROC AUC and Brier score. Where rotation is unavailable or
-excluded, however, AP falls by 0.0027, ROC AUC by 0.0018, and Brier score worsens by 0.0018. CatBoost and MLP
-probabilities are highly correlated: 0.9570 on aligned 2019 OOF rows and 0.9718 in 2023. The limited error diversity
-explains why blending produces little additional information.
-
-The blend is retained as a completed negative-or-neutral result, but it does not replace CatBoost Experiment 04 as the
-preferred Model 1A candidate. Running two preprocessing pipelines and two model runtimes, including TensorFlow, is not
-justified by a 0.0006 AP gain with a simultaneous ROC AUC decline. Calibration Experiment 01 therefore starts with
-CatBoost 04 and retains its unchanged probabilities after neither correction improves training-only reliability. No
-combined feature or prediction dataset is written, the final-tail assignment caveat remains, and 2024 remains
-untouched.
-
-### Current Model 1A CatBoost calibration comparison
-
-Calibration Experiment 01 keeps CatBoost 04's classifier and 41-field manifest fixed and asks whether its probabilities
-need a post-model correction. It compares unchanged probabilities with sigmoid and isotonic mappings using only 2019
-held-out predictions. Fold 1 supplies the first independent calibration sample; for assessment folds 2–5, each
-calibrator is fitted only to earlier held-out folds. Mean forward Brier score is the primary selection measure, with
-log loss and ten-bin expected calibration error as supporting diagnostics.
-
-The uncalibrated probabilities win all three training-only reliability measures. Their mean Brier score is 0.0918,
-compared with 0.0922 for sigmoid and 0.0923 for isotonic. Mean log loss is 0.3124 uncalibrated, 0.3137 sigmoid, and
-0.3152 isotonic; mean expected calibration error is 0.0125, 0.0156, and 0.0160 respectively. Sigmoid preserves AP and
-ROC AUC, as expected from a monotonic correction, but does not improve reliability. Isotonic also reduces mean AP from
-0.7117 to 0.7018 because its stepwise mapping introduces probability ties.
-
-Following the predeclared protocol, the rejected corrections are not carried into 2023. The selected result is therefore
-exactly CatBoost 04: AP 0.7526, ROC AUC 0.8546, Brier score 0.1086, log loss 0.3567, and expected calibration error
-0.0282. Its training-selected threshold remains 0.31, with 2023 F1 0.6511 and MCC 0.5640. This negative result is useful:
-CatBoost 04's native probabilities are already better calibrated across the 2019 temporal shifts than either added
-mapping, so another fitted stage would add complexity without evidence of benefit. CatBoost 04 remains unchanged and
-preferred; the final-tail assignment caveat remains, and 2024 remains untouched.
-
-### Current Model 1A CatBoost subgroup and SHAP audit
-
-CatBoost Audit 01 freezes Experiment 04's 41-field manifest, 683-tree classifier, and 0.31 training-selected threshold.
-The all-2019 refit exactly reproduces the published complete-2023 result: AP 0.7526, ROC AUC 0.8546, Brier score 0.1086,
-F1 0.6511, and MCC 0.5640. The notebook makes no selection from these results. Planned-traffic quartiles use boundaries
-learned only from 2019—170.25, 195, and 213 summed movements—and all other audit groups use fixed operational rules.
+| 2C | Logistic regression | 02 | 2023 external validation | Default | 0.50 | 0.9241 | 0.8664 | 0.9249 | 0.7528 | 0.8300 | 0.7886 |
+| 2C | Logistic regression | 02 | 2023 external validation | Training-selected F1 | 0.45 | 0.9239 | 0.8712 | 0.9098 | 0.7672 | 0.8324 | 0.7885 |
+| 2C | Logistic regression | 03 | 2023 external validation | Default | 0.50 | 0.9207 | 0.8554 | 0.9370 | 0.7267 | 0.8185 | 0.7790 |
+| 2C | Logistic regression | 03 | 2023 external validation | Training-selected F1 | 0.39 | 0.9222 | 0.8705 | 0.9011 | 0.7686 | 0.8296 | 0.7838 |
+| 2C | Gaussian Naive Bayes | 01 | 2023 external validation | Default | 0.50 | 0.7245 | 0.7698 | 0.4677 | 0.8590 | 0.6056 | 0.4670 |
+| 2C | Gaussian Naive Bayes | 01 | 2023 external validation | Training-selected F1 | 0.99999996 | 0.8700 | 0.7415 | 0.9675 | 0.4883 | 0.6491 | 0.6307 |
+| 2C | Support vector machine | 01 | 2023 external validation | Default | 0.50 | 0.9228 | 0.8667 | 0.9159 | 0.7560 | 0.8283 | 0.7851 |
+| 2C | Support vector machine | 01 | 2023 external validation | Training-selected F1 | 0.428646 | 0.9224 | 0.8736 | 0.8937 | 0.7774 | 0.8315 | 0.7846 |
+| 2C | Linear discriminant analysis | 01 | 2023 external validation | Default | 0.50 | 0.8858 | 0.7707 | 0.9866 | 0.5439 | 0.7012 | 0.6810 |
+| 2C | Linear discriminant analysis | 01 | 2023 external validation | Training-selected F1 | 0.114816 | 0.9134 | 0.8661 | 0.8616 | 0.7727 | 0.8147 | 0.7604 |
+| 2C | CatBoost | 01 | 2023 external validation | Default | 0.50 | 0.9193 | 0.8580 | 0.9193 | 0.7372 | 0.8182 | 0.7749 |
+| 2C | CatBoost | 01 | 2023 external validation | Training-selected F1 | 0.37 | 0.9188 | 0.8704 | 0.8810 | 0.7750 | 0.8246 | 0.7747 |
+| 2C | CatBoost | 02 | 2023 external validation | Default | 0.50 | 0.9204 | 0.8591 | 0.9227 | 0.7385 | 0.8204 | 0.7779 |
+| 2C | CatBoost | 02 | 2023 external validation | Training-selected F1 | 0.36 | 0.9193 | 0.8713 | 0.8817 | 0.7767 | 0.8259 | 0.7763 |
+| 2C | Multilayer perceptron | 01 | 2023 external validation | Default | 0.50 | 0.9229 | 0.8599 | 0.9382 | 0.7356 | 0.8246 | 0.7856 |
+| 2C | Multilayer perceptron | 01 | 2023 external validation | Training-selected F1 | 0.49 | 0.9233 | 0.8612 | 0.9364 | 0.7388 | 0.8260 | 0.7866 |
+| 2C | CatBoost / MLP blend | 01 | 2023 external validation | Default | 0.50 | 0.9226 | 0.8604 | 0.9343 | 0.7377 | 0.8245 | 0.7847 |
+| 2C | CatBoost / MLP blend | 01 | 2023 external validation | Training-selected F1 | 0.38 | 0.9235 | 0.8725 | 0.9037 | 0.7718 | 0.8326 | 0.7875 |
+
+### Model 1A logistic-regression comparison
+
+These experiments tested which operational information improved departure predictions with logistic regression.
+Experiments 01–03 compared the raw baseline with two general engineered feature sets. Neither engineered version
+improved the 2023 results, so Experiment 01 remained the raw baseline.
+
+The operational features produced clearer gains. The 30-minute backlog raised 2023 average precision (AP) from 0.3959
+to 0.4184. Aircraft rotation raised it to 0.6515. Full movement history and the 24-hour turn mask raised it again to
+0.6960. Combining rotation with backlog produced 0.7020 with a 30-minute window and 0.7053 with a 60-minute window.
+Experiment 08 was therefore the strongest Model 1A logistic-regression design.
+
+The rotation results are retrospective upper bounds. BTS identifies the aircraft that operated the flight, but not
+necessarily the aircraft assigned at the prediction time. Live use would require timestamped aircraft assignments and
+timely gate and arrival events.
+
+### Model 1A decision-tree comparison
+
+This experiment tested whether a single tree benefited from compact engineered features. Experiment 02's 2023 AP was
+almost unchanged, but its Brier score improved from 0.2160 to 0.1726. It became the preferred single-tree design,
+although both trees remained weaker than the raw logistic baseline.
+
+### Model 1A random-forest comparison
+
+This experiment tested whether an ensemble of trees used the compact features better than one tree. Random Forest 01
+reached 0.3970 AP in 2023, compared with 0.3689 for the single tree. It was a useful non-backlog baseline, but it
+remained weaker than models using backlog and rotation information.
+
+### Model 1A exact-manifest Random Forest comparison
+
+This experiment separated the value of CatBoost 04's features from the value of the CatBoost classifier. Random Forest
+02 used the same 41-field allowlist. Its 2023 AP reached 0.7409, showing that the rotation and backlog fields provide
+most of the performance gain. CatBoost 04 remained stronger at 0.7526 AP and had better
+probability quality, F1, and MCC. The aircraft-assignment limitation applies to both models.
+
+### Model 1A CatBoost comparison
+
+These experiments tested CatBoost first with the general features and then with the operational features. CatBoost 01
+was the strongest non-backlog tree model, with 2023 AP of 0.4104. CatBoost 02 added rotation and the compact 60-minute
+backlog; AP increased to 0.7473. CatBoost 03 added the remaining backlog fields, but did not improve the
+result. The compact backlog set was retained.
+
+CatBoost 02 was substantially better than the matching logistic model. This supports nonlinear relationships among
+aircraft availability, airport pressure, schedule, airline, and route. The aircraft-assignment limitation still
+applies.
+
+### Model 1A neural-network comparison
+
+This experiment tested whether a neural network improved predictions from the same 36 fields used by CatBoost 02. Its
+2023 AP was 0.7405, compared with 0.7473 for CatBoost. The MLP confirmed the value of nonlinear modeling, but did not
+replace CatBoost. The aircraft-assignment limitation remains.
+
+### Model 1A same-airline CatBoost comparison
+
+This experiment tested whether same-airline congestion added information beyond airport-wide congestion. CatBoost 04
+added five same-airline backlog fields. Its 2023 AP increased from 0.7473 to 0.7526, Brier score improved
+from 0.1100 to 0.1086, and F1 increased from 0.6411 to 0.6511. The gain was small but consistent, so CatBoost 04 became
+the preferred Model 1A design. Live use still requires timely operational data and verified aircraft assignments.
+
+### Model 1A final CatBoost search
+
+This experiment tested whether small feature or capacity changes could materially improve CatBoost 04. CatBoost 05
+tested schedule-cycle fields, compact weather fields, additional capacity, and chronological CatBoost handling. None
+cleared the required 0.003 improvement in 2019 AP. CatBoost 04 remained unchanged. This provided a
+practical stopping point for further tuning with the available information.
+
+### Model 1A CatBoost/MLP blend comparison
+
+This experiment tested whether CatBoost and the MLP made different enough errors to benefit from a blend. Training
+selected 75% CatBoost and 25% MLP. In 2023, AP increased only from 0.7526 to 0.7532 and ROC AUC decreased slightly. The
+gain did not justify running two models, so CatBoost 04 remained preferred.
+
+### Model 1A CatBoost calibration comparison
+
+This experiment tested whether a probability correction made CatBoost 04 more reliable. The original probabilities
+had a better 2019 Brier score than sigmoid or isotonic calibration. The two corrections were therefore rejected before
+2023 evaluation. CatBoost 04 kept its original probabilities and 0.31
+threshold.
+
+### Model 1A CatBoost subgroup and SHAP audit
+
+The audit looked for weak groups and identified which fields drove CatBoost 04's predictions. It reproduced the
+2023 result and reviewed performance across operational groups.
 
 | Audit dimension | Groups | Smallest group | AP range | Recall range at 0.31 | Largest absolute mean-probability gap |
 |---|---:|---:|---:|---:|---:|
@@ -563,47 +302,190 @@ learned only from 2019—170.25, 195, and 213 summed movements—and all other a
 | Planned-traffic quartile | 4 | 18,497 | 0.5601–0.8145 | 0.3785–0.6739 | 0.0364 |
 | Weather | 4 | 6,510 | 0.7308–0.8196 | 0.5563–0.6842 | 0.0364 |
 
-AP must be read relative to each group's prevalence, and the smallest groups need caution. The clearest coverage gap is
-for the 682 departures scheduled from 00:00 through 05:59: prevalence is 0.1158, AP is 0.2257, and recall at 0.31 is
-0.0759. The larger 06:00–11:59 group has AP 0.5678 and recall 0.3828, while evening departures reach AP 0.8429 and
-recall 0.7144. Performance also rises monotonically across the 2019-defined planned-traffic bands: AP moves from 0.5601
-in Q1 to 0.8145 in Q4, and recall moves from 0.3785 to 0.6739. The model underpredicts mean risk in every month and
-weather group. July has the largest monthly gap at -0.0453; low visibility has the largest weather gap at -0.0364.
-Among large airline populations, JetBlue has a -0.0679 gap on 36,121 rows. The larger gaps for Hawaiian and the pooled
-small-route group are descriptive warnings based on smaller or heterogeneous populations, not calibration targets.
-
-CatBoost SHAP values on the fixed 5,000-row 2023 sample reinforce the earlier fitted-importance result. Log actual turn
-time and actual turn time have the two largest mean absolute contributions, followed by inbound arrival delay, rotation
-status, scheduled departure time, and airport-wide W60 pending count. Airport-wide mean signed delay ranks ninth;
-same-airline mean signed delay, pending share, and pending count rank twelfth, fifteenth, and twentieth. All eight
-selected backlog fields have nonzero mean absolute SHAP values. The notebook also records the five largest signed
-contributions for a representative true negative, false positive, false negative, and true positive selected near the
-median probability of each outcome type. SHAP values describe how the frozen model forms a prediction; they do not show
-that a field caused a delay.
-
-The audit identifies monitoring priorities rather than a new development round. CatBoost Experiment 04, its native
-probabilities, and its 0.31 threshold remain preferred and unchanged. No combined feature or prediction dataset is
-written, the final-tail assignment limitation remains, and 2024 remains untouched.
+Overnight departures were the clearest weak group. Performance improved as planned traffic increased. SHAP identified
+turn time, inbound arrival delay, rotation status, scheduled departure time, and backlog as the leading inputs. These
+are predictive relationships, not proof of cause. The audit did not change the model.
 
 ### Model 2A/2B/2C logistic-regression timing comparison
 
-These three experiments use identical 2019 and 2023 arrival rows, the same target, the same five time-ordered training
-folds, and the same 16 logistic-regression configurations. Model 2B changes only by adding signed `DepDelay`; Model 2C
-then changes only by adding log taxi-out duration and two cyclical actual-takeoff fields. Their differences can therefore
-be interpreted as the incremental predictive value available at each operational milestone.
+These experiments measured how much new information became available at pushback and after takeoff. They use the same
+arrival rows. Before pushback, Model 2A reached 0.4019 AP. Adding actual departure delay at pushback raised AP to
+0.8682. Adding taxi-out information after takeoff raised it to 0.9090. Actual departure delay
+provided the largest gain; taxi-out time provided a smaller additional gain.
 
-Before pushback, Model 2A provides modest ranking skill: 2023 AP is 0.4019 and ROC AUC is 0.6744. Adding signed gate
-delay in Model 2B produces the largest information gain. AP rises by 0.4662 to 0.8682, ROC AUC rises by 0.2382 to 0.9126,
-and Brier score falls by 0.0987 to 0.0755. At the training-selected threshold, F1 rises from 0.4425 to 0.7884. The
-standardized `DepDelay` coefficient is 6.53 and is much larger than every remaining Model 2B coefficient.
+### Model 2A CatBoost comparisons
 
-Model 2C adds a further, smaller but still material improvement after takeoff. Relative to Model 2B, AP rises by 0.0408
-to 0.9090, ROC AUC rises by 0.0330 to 0.9457, Brier score falls by 0.0138 to 0.0616, and training-selected F1 rises by
-0.0339 to 0.8224. In the fitted Model 2C design, standardized coefficient magnitude is 7.92 for `DepDelay` and 1.29 for
-`LOG_TAXI_OUT_MINUTES`. The takeoff sine coefficient is only 0.032 and L1 regularization sets the cosine coefficient to
-zero. The post-takeoff gain is therefore associated primarily with realized taxi-out duration rather than clock time.
+These experiments tested whether CatBoost improved the early arrival prediction made before pushback. Neither CatBoost
+experiment improved on Logistic Regression 2A-01. The expanded CatBoost model reached 0.3975 AP,
+compared with 0.4019 for logistic regression, and its probabilities were less reliable. Logistic Regression 2A-01
+remained preferred.
 
-The results support the planned information ladder: schedule, origin congestion, and weather provide a useful early
-estimate; actual gate delay dominates once pushback occurs; and realized taxi time supplies an additional update after
-takeoff. The operational fields are valid only at their stated prediction times and would require live gate-out and
-takeoff feeds in deployment. The 2024 arrivals remain untouched for final testing.
+### Model 2B pushback-margin and CatBoost comparisons
+
+These experiments represented the remaining scheduled time more directly and tested CatBoost on the same idea.
+Logistic Regression 2B-02 added a spline for the time remaining until scheduled arrival. Its 2023 AP improved from
+0.8682 to 0.8704 and its Brier score improved from 0.0755 to 0.0748. CatBoost reached slightly higher AP at 0.8715, but
+had a worse Brier score, F1, and MCC. Logistic Regression 2B-02 remained preferred.
+
+### Model 2C CatBoost comparison
+
+This experiment isolated the effect of changing the classifier while keeping the same after-takeoff fields. CatBoost
+01 reached 0.9080 AP in 2023, compared with 0.9090 for logistic regression, and its Brier score was slightly worse.
+CatBoost provided slightly higher recall, but did not provide a
+clear overall improvement.
+
+### Model 2C schedule-margin comparison
+
+This experiment represented the time remaining until scheduled arrival more directly. Logistic Regression 2C-02 used
+raw `TaxiOut` and a spline for that margin. Its 2023 AP increased from 0.9090 to 0.9145, Brier score improved from
+0.0616 to 0.0594, and F1 increased from 0.8224 to 0.8324.
+Experiment 02 became the preferred Model 2C design.
+
+### Model 2C ridge-logistic comparison
+
+This experiment tested whether retaining and shrinking every coefficient improved the sparse L1 model. Experiment 03
+used L2 regularization. Its 2023 AP was 0.9117, below Experiment 02's 0.9145, and its probability and classification
+measures were also weaker. The L1 model remained preferred.
+
+### Model 2C Gaussian Naive Bayes comparison
+
+This experiment tested a simple probability model on the selected Model 2C representation. Gaussian Naive Bayes was
+substantially weaker. Its 2023 AP was 0.8282 and its Brier score was 0.2226. Its selected threshold was nearly 1.0,
+which showed that its probabilities were not reliable for this dataset. Logistic Regression
+2C-02 remained preferred.
+
+### Model 2C support-vector-machine comparison
+
+This experiment tested whether a maximum-margin classifier or a nonlinear boundary improved Model 2C. The linear SVM
+outperformed the approximate RBF version during training. In 2023, its AP was 0.9116, below Logistic Regression 2C-02
+at 0.9145. Its Brier score, F1, and MCC were also slightly weaker. Logistic regression remained
+preferred.
+
+### Linear discriminant analysis comparisons
+
+These experiments tested a common linear alternative on the strongest representation for Models 1A, 2B, and 2C. All
+three selected LSQR with shrinkage 0.01. None improved on the preferred model at its prediction time: CatBoost 04 for
+Model 1A, Logistic
+Regression 2B-02, or Logistic Regression 2C-02.
+
+### Model 2C CatBoost schedule-margin comparison
+
+This experiment tested whether the schedule-margin idea also helped CatBoost. CatBoost 02 added raw `TaxiOut` and a
+numeric schedule margin. Its 2023 AP improved from 0.9080 to 0.9092, confirming that the schedule-margin idea was
+useful. Logistic Regression 2C-02 remained stronger at 0.9145 AP with better
+probability and classification measures.
+
+### Model 2C neural-network comparison
+
+This experiment tested whether a neural network improved on the selected Model 2C features. The MLP reached 0.9149 AP,
+only 0.0004 above Logistic Regression 2C-02. Its Brier score, F1, and MCC were weaker. This was not a clear standalone
+improvement, but the different model structure justified testing a simple blend.
+
+### Model 2C CatBoost/MLP blend comparison
+
+This experiment tested whether combining CatBoost and MLP probabilities improved Model 2C. Training selected an equal
+blend. In 2023, its AP was 0.9143, below both the MLP and Logistic Regression 2C-02. Its F1 was only 0.0002 higher than
+logistic regression, while probability quality and MCC were worse.
+The added complexity was not justified, so Logistic Regression 2C-02 remained preferred.
+
+## Final 2024 evaluation
+
+The 2024 outcomes were opened only after one design was frozen for each distinct prediction time. The
+[final evaluation notebook](models/final_evaluation_2024_01.ipynb) refits each design on all 2019 rows, predicts 2024,
+and applies the previously selected threshold. It performs no model search, feature search, calibration, or threshold
+selection. The 2024 results are final test estimates, not another basis for choosing a model.
+
+| Model | Prediction time | Frozen design | Source fields | Prepared predictors | Frozen setting | Threshold | 2024 rows | 2024 delay rate |
+|---|---|---|---:|---:|---|---:|---:|---:|
+| 1A | Before pushback for a JFK departure | CatBoost 04 | 41 | 41 | 683 trees; depth 6; learning rate 0.03; L2 leaf regularization 3; no class weighting | 0.31 | 104,715 | 0.2038 |
+| 2A | Before pushback for a JFK-bound flight | Logistic Regression 01 | 27 | 98 | L1; `C=0.1`; no class weighting | 0.22 | 104,555 | 0.2161 |
+| 2B | At pushback | Logistic Regression 02 | 28 | 105 | L1; `C=0.01`; degree-3 pushback-margin spline; no class weighting | 0.39 | 104,555 | 0.2161 |
+| 2C | After takeoff | Logistic Regression 02 | 31 | 108 | L1; `C=0.1`; raw `TaxiOut`; degree-3 schedule-margin spline; no class weighting | 0.45 | 104,555 | 0.2161 |
+
+### Final ranking and probability results
+
+| Model | 2023 AP | 2024 AP | AP change | 2024 ROC AUC | 2024 Brier score |
+|---|---:|---:|---:|---:|---:|
+| 1A CatBoost 04 | 0.7526 | 0.7250 | -0.0276 | 0.8517 | 0.0983 |
+| 2A Logistic Regression 01 | 0.4019 | 0.3482 | -0.0537 | 0.6569 | 0.1603 |
+| 2B Logistic Regression 02 | 0.8704 | 0.8757 | +0.0053 | 0.9254 | 0.0626 |
+| 2C Logistic Regression 02 | 0.9145 | 0.9268 | +0.0123 | 0.9611 | 0.0465 |
+
+### Final operating-threshold results
+
+The default and frozen-threshold rows use the same 2024 probabilities. Changing the threshold changes only the point
+at which a flight is classified as delayed.
+
+| Model | Threshold policy | Threshold | Accuracy | Balanced accuracy | Precision | Recall | F1 | MCC |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 1A CatBoost 04 | Default | 0.50 | 0.8730 | 0.7133 | 0.8694 | 0.4437 | 0.5875 | 0.5630 |
+| 1A CatBoost 04 | Frozen training-selected F1 | 0.31 | 0.8670 | 0.7530 | 0.7246 | 0.5605 | 0.6321 | 0.5593 |
+| 2A Logistic Regression 01 | Default | 0.50 | 0.7854 | 0.5105 | 0.5768 | 0.0262 | 0.0502 | 0.0873 |
+| 2A Logistic Regression 01 | Frozen training-selected F1 | 0.22 | 0.6520 | 0.6097 | 0.3184 | 0.5351 | 0.3993 | 0.1877 |
+| 2B Logistic Regression 02 | Default | 0.50 | 0.9223 | 0.8428 | 0.9187 | 0.7029 | 0.7964 | 0.7597 |
+| 2B Logistic Regression 02 | Frozen training-selected F1 | 0.39 | 0.9201 | 0.8535 | 0.8740 | 0.7362 | 0.7992 | 0.7540 |
+| 2C Logistic Regression 02 | Default | 0.50 | 0.9402 | 0.8853 | 0.9238 | 0.7885 | 0.8508 | 0.8177 |
+| 2C Logistic Regression 02 | Frozen training-selected F1 | 0.45 | 0.9401 | 0.8905 | 0.9091 | 0.8031 | 0.8528 | 0.8179 |
+
+The 2024 arrival results confirm the information ladder. Average precision rises from 0.3482 before pushback to 0.8757
+at pushback and 0.9268 after takeoff. Model 2A remains the weakest arrival prediction point because it has no realized
+operating delay.
+Models 2B and 2C generalize at least as well as they did in 2023.
+
+Model 1A retains nearly the same ROC AUC as in 2023, but its average precision and frozen-threshold F1 are lower. Model
+2A also declines. These are final-test findings; they do not authorize post-test tuning or a new model choice.
+CatBoost 1A-04 and the three selected logistic-regression designs remain the reported frozen models. The rotation-based
+Model 1A result also retains the retrospective aircraft-assignment limitation described above.
+
+## Post-test combined-training sensitivity
+
+Four append-only experiments test routine retraining after the official 2024 evaluation. Each experiment copies one
+frozen selected design, combines the 2019 and 2023 training rows, and applies the existing operating threshold to 2024.
+No feature, model, parameter, or threshold is selected from these results. Because the 2024 outcomes were already
+examined, these are post-test sensitivity results and do not replace the final estimates above.
+
+| Model | Experiment notebook | Training rows | Source fields | Pooled prepared predictors | Fit seconds | Fit status |
+|---|---|---:|---:|---:|---:|---|
+| 1A CatBoost 06 | [catboost_1a_06.ipynb](models/catboost_1a_06.ipynb) | 217,413 | 41 | 41 | 51.0 | Completed |
+| 2A Logistic Regression 02 | [logistic_regression_2a_02.ipynb](models/logistic_regression_2a_02.ipynb) | 217,301 | 27 | 101 | 33.9 | Completed |
+| 2B Logistic Regression 03 | [logistic_regression_2b_03.ipynb](models/logistic_regression_2b_03.ipynb) | 217,301 | 28 | 108 | 2.7 | Completed |
+| 2C Logistic Regression 04 | [logistic_regression_2c_04.ipynb](models/logistic_regression_2c_04.ipynb) | 217,301 | 31 | 111 | 3,353.4 | Reached the unchanged 5,000-iteration ceiling without convergence |
+
+The three additional prepared predictors in each pooled logistic-regression experiment come from categories learned
+across both training years. The source allowlists do not change.
+
+### Combined-training ranking and probability results
+
+| Model | 2019-only AP | Combined AP | AP change | Combined ROC AUC | ROC AUC change | Combined Brier | Brier change |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1A CatBoost 06 | 0.7250 | 0.7313 | +0.0063 | 0.8553 | +0.0036 | 0.0965 | -0.0018 |
+| 2A Logistic Regression 02 | 0.3482 | 0.3544 | +0.0062 | 0.6696 | +0.0127 | 0.1589 | -0.0014 |
+| 2B Logistic Regression 03 | 0.8757 | 0.8769 | +0.0012 | 0.9261 | +0.0007 | 0.0621 | -0.0005 |
+| 2C Logistic Regression 04 | 0.9268 | 0.9270 | +0.0002 | 0.9614 | +0.0003 | 0.0468 | +0.0003 |
+
+### Combined-training operating-threshold results
+
+| Model | Threshold policy | Threshold | Accuracy | Balanced accuracy | Precision | Recall | F1 | MCC |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 1A CatBoost 06 | Default | 0.50 | 0.8749 | 0.7259 | 0.8429 | 0.4745 | 0.6072 | 0.5711 |
+| 1A CatBoost 06 | Frozen | 0.31 | 0.8622 | 0.7641 | 0.6854 | 0.5986 | 0.6391 | 0.5563 |
+| 2A Logistic Regression 02 | Default | 0.50 | 0.7851 | 0.5174 | 0.5317 | 0.0460 | 0.0846 | 0.1058 |
+| 2A Logistic Regression 02 | Frozen | 0.22 | 0.6266 | 0.6229 | 0.3144 | 0.6163 | 0.4164 | 0.2047 |
+| 2B Logistic Regression 03 | Default | 0.50 | 0.9227 | 0.8473 | 0.9083 | 0.7145 | 0.7999 | 0.7612 |
+| 2B Logistic Regression 03 | Frozen | 0.39 | 0.9192 | 0.8569 | 0.8605 | 0.7472 | 0.7998 | 0.7525 |
+| 2C Logistic Regression 04 | Default | 0.50 | 0.9400 | 0.8877 | 0.9158 | 0.7955 | 0.8514 | 0.8172 |
+| 2C Logistic Regression 04 | Frozen | 0.45 | 0.9393 | 0.8931 | 0.8979 | 0.8116 | 0.8525 | 0.8161 |
+
+Combined training provides the clearest gains for Models 1A and 2A. CatBoost 1A improves AP, ROC AUC, Brier score,
+and frozen-threshold F1, although MCC is 0.0030 lower. Model 2A improves every reported ranking measure and raises
+frozen-threshold F1 by 0.0171 and MCC by 0.0170, but it remains much weaker than the later arrival predictions because
+it still lacks realized operating information.
+
+The changes for Models 2B and 2C are negligible. Model 2B improves ranking and Brier score slightly, while its
+frozen-threshold F1 is effectively unchanged and MCC is 0.0015 lower. Model 2C gains only 0.0002 AP, worsens Brier
+score by 0.0003, and slightly lowers F1 and MCC. Its unchanged solver also fails to converge after 3,353.4 seconds.
+The exact pooled 2C retraining procedure is therefore not operationally justified by this result.
+
+These findings support combined-year retraining as a possible future deployment practice for Models 1A and 2A, but
+an untouched later year would be required to evaluate that practice fairly. The official 2019-trained final models and
+their 2024 test results remain unchanged.

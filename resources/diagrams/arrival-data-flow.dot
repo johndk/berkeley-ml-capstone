@@ -47,9 +47,9 @@ strict digraph arrival_data_flow {
 
         { rank=same; bts; aspm; noaa; }
 
-        bts [label="BTS flights\nprocess_bts → clean_bts"];
-        aspm [label="ASPM planned demand\nprocess_aspm → clean_aspm"];
-        noaa [label="NOAA weather\nprocess_noaa → clean_noaa"];
+        bts [label="C-BTS-A\nAIRPORT_YEAR.csv"];
+        aspm [label="C-ASPM-A\nAIRPORT_YEAR.csv"];
+        noaa [label="C-NOAA-A\nAIRPORT_YEAR.csv"];
     }
 
     subgraph cluster_destination_inputs {
@@ -66,12 +66,12 @@ strict digraph arrival_data_flow {
         { rank=same; inbound; demand; weather; }
 
         inbound [
-            label="2a. Build JFK-bound flights\ncat_bts.py  ·  Dest = JFK",
+            label="2a. cat_bts.py\nC-BTS-C  ·  cleaned_JFK_YEAR.csv",
             fillcolor="#EAF2FB",
             color="#5B82AE"
         ];
-        demand [label="2b. Consolidate origin demand\ncat_aspm.py"];
-        weather [label="2c. Consolidate origin weather\ncat_noaa.py"];
+        demand [label="2b. cat_aspm.py\nC-ASPM-C  ·  cleaned_JFK_YEAR.csv"];
+        weather [label="2c. cat_noaa.py\nC-NOAA-C  ·  cleaned_JFK_YEAR.csv"];
     }
 
     merge [
@@ -81,7 +81,7 @@ strict digraph arrival_data_flow {
     ];
 
     merged [
-        label="Merged arrivals\nJFK_YEAR_arrivals.csv",
+        label="MD-A\nJFK_YEAR_arrivals.csv",
         shape=cylinder,
         style=filled,
         fillcolor="#FFF7E3",
@@ -95,7 +95,7 @@ strict digraph arrival_data_flow {
     ];
 
     ready [
-        label="Arrival feature dataset\nJFK_YEAR_arrivals.csv",
+        label="BL-A\nJFK_YEAR_arrivals.csv",
         shape=cylinder,
         style=filled,
         fillcolor="#FFF7E3",

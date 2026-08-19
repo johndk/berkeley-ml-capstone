@@ -18,6 +18,11 @@ combine the datasets only in memory; no permanent combined feature dataset is cr
 exact equality of `FlightDate`, `Reporting_Airline`, `Flight_Number_Reporting_Airline`, `Origin`, `Dest`, `CRSDepTime`,
 `Tail_Number`, and `DepDel15`. The airport-wide and same-airline backlog cutoff timestamps must also match.
 
+A field's presence in a feature dataset does not authorize its use as a predictor. Each experiment admits only its
+explicit allowlist. Target-flight outcomes, raw `Tail_Number`, and the eight rotation audit fields are excluded from
+model inputs. Learned imputation, encoding, scaling, feature selection, calibration, and class handling remain inside
+training-only model pipelines.
+
 ## Reusable feature allowlists
 
 The model inputs come from baseline, airport-backlog, same-airline backlog, and aircraft-rotation feature datasets.
@@ -162,7 +167,7 @@ summaries.
 **Reasoning:** BL-D-34 avoids high-cardinality identity fields and many duplicate raw/transformed pairs. It is broader than
 BL-D-20 but smaller than BL-D-54.
 
-### Rotation additions
+### RT-n and RTF-n — Rotation additions
 
 **Dataset categories:** RT-5 and RT-13 come from the original limited-history rotation dataset. RTF-3, RTF-4, and RTF-13 come
 from the full-history rotation dataset.
@@ -190,7 +195,7 @@ performed. The narrower sets separate scheduled aircraft context from live arriv
 remain retrospective upper bounds because BTS contains the final aircraft assignment rather than a timestamped
 assignment available at prediction time.
 
-### Airport-wide backlog additions
+### BK-t-n and BK-t-n — Airport-wide backlog additions
 
 **Dataset categories:** BK-30-3 and BK-30-8 come from the airport-wide W30 departure backlog dataset. BK-60-3 and BK-60-8 come
 from the airport-wide W60 departure backlog dataset.
@@ -211,7 +216,7 @@ The W30 and W60 fields use the same definitions; only the lookback window change
 **Reasoning:** The compact sets represent queue pressure, recent throughput, and signed delay with little duplication.
 The full sets test whether additional counts, rates, and delay totals help a nonlinear model.
 
-### Same-airline backlog addition
+### BKA-60-5 Same-airline backlog addition
 
 **Dataset category:** Same-airline W60 departure backlog.
 
@@ -287,6 +292,12 @@ Logistic Regression 06 uses these variants:
 | Random Forest 01 | BL-D-34: 34 fields | Holds the allowlist fixed and changes only the classifier from one tree to a forest. |
 | Random Forest 02 | BL-D-20 + RTF-13 + BK-60-3 + BKA-60-5: 41 fields | Gives Random Forest the exact preferred CatBoost 04 source allowlist. This separates feature value from classifier-family value. |
 
+### Linear-discriminant comparison
+
+| Experiment | Source allowlist | Change and reason |
+|---|---:|---|
+| LDA 01 | BL-D-20 + RTF-13 + BK-60-3 + BKA-60-5: 41 fields | Gives LDA the exact preferred CatBoost 04 source allowlist and 24-hour rotation mask. The model prepares 210 dense predictors and compares ordinary LDA with shrinkage LDA. This changes only the classifier and its preprocessing. |
+
 ### CatBoost sequence
 
 | Experiment | Source allowlist | Change and reason |
@@ -295,6 +306,8 @@ Logistic Regression 06 uses these variants:
 | CatBoost 02 | BL-D-20 + RTF-13 + BK-60-3: 36 fields | Applies CatBoost to the operational feature hypothesis selected by Logistic Regression 08. The 24-hour rotation mask is retained. |
 | CatBoost 03 | 36-field control versus BL-D-20 + RTF-13 + BK-60-8: 41 fields | Changes only the airport-wide backlog breadth. The full eight-field backlog does not improve the 2019 selection result, so BK-60-3 remains selected. |
 | CatBoost 04 | 36-field control versus BL-D-20 + RTF-13 + BK-60-3 + BKA-60-5: 41 fields | Adds airline-specific pressure while retaining the airport-wide backlog and rotation controls. The 41-field variant is selected and is the preferred departure model. |
+| CatBoost 05 | CatBoost 04's 41-field control versus schedule-cycle, compact-weather, and combined additions of up to 10 existing BL-D fields | Makes one final bounded representation and capacity search. The 51-field combined variant improves mean 2019 AP by only 0.0014 and fails the predeclared 0.003 guardrail. Deeper trees and chronological handling also fail their guardrails, so the exact CatBoost 04 allowlist and classifier remain selected. |
+| CatBoost 06 | BL-D-20 + RTF-13 + BK-60-3 + BKA-60-5: 41 fields | Reuses the exact CatBoost 04 design and frozen 0.31 threshold. It changes only the training population from 2019 to combined 2019 and 2023 data, then reports a post-test 2024 sensitivity result. |
 
 The selected CatBoost 04 allowlist contains 41 source fields: 20 from BL-D-20, 13 from RTF-13, three from BK-60-3,
 and five from BKA-60-5. These are six categorical and 35 numeric fields before model-specific preprocessing. The
@@ -317,13 +330,22 @@ at its prediction time.
 | Experiment | Prediction time | Source allowlist | Change and reason |
 |---|---|---:|---|
 | Model 2A Logistic Regression 01 | Before pushback | BL-A-27: 27 fields | Establishes the schedule, route, planned-origin-demand, and origin-weather baseline. All target-flight operating outcomes are prohibited. |
+| Model 2A Logistic Regression 02 | Before pushback | BL-A-27: 27 fields | Reuses Logistic Regression 01's exact allowlist, classifier, and 0.22 threshold. It changes only the training population to combined 2019 and 2023 data. The pooled preprocessing produces 101 predictors because it learns categories from both years. |
+| Model 2A CatBoost 01 | Before pushback | BL-A-27: 27 fields | Changes only the classifier. CatBoost handles `Reporting_Airline` and `Origin` as native categorical fields and tests nonlinear relationships within the same compact information. |
+| Model 2A CatBoost 02 | Before pushback | BL-A-27 plus saved `SCHED_DEP_HOUR`, `Month`, and `DayOfWeek`, and model-side `AIRLINE_ORIGIN`: 30 saved fields and 31 CatBoost inputs | Tests explicit schedule, calendar, and airline–origin categories without adding later operational information. The expansion wins its fixed-classifier 2019 screen but does not beat the logistic baseline. |
 | Model 2B Logistic Regression 01 | Immediately after pushback | BL-A-27 + `DepDelay`: 28 fields | Adds signed gate-departure delay, the smallest nonredundant description of the completed pushback event. Raw `DepTime` and alternative delay representations remain excluded. |
+| Model 2B Logistic Regression 02 | Immediately after pushback | Four variants based on BL-A-27 and `DepDelay`; the selected design uses the 28 saved fields plus a fold-fitted spline of model-side `MINUTES_TO_SCHEDULED_ARRIVAL_AT_PUSHBACK` | Tests linear departure delay, a departure-delay spline, a pushback schedule-margin spline, and that margin plus actual-departure clock cycles. The selected margin equals `CRSElapsedTime - DepDelay`. |
+| Model 2B Logistic Regression 03 | Immediately after pushback | Logistic Regression 02's selected 28 saved fields plus the degree-3 pushback-margin spline: 108 pooled-training predictors | Reuses the exact selected classifier and 0.39 threshold. It changes only the training population to combined 2019 and 2023 data. |
+| Model 2B CatBoost 01 | Immediately after pushback | Logistic Regression 02's selected 28 saved fields plus numeric model-side `MINUTES_TO_SCHEDULED_ARRIVAL_AT_PUSHBACK`: 29 CatBoost inputs | Tests the selected pushback-margin idea with a nonlinear classifier. CatBoost receives the margin directly rather than as a spline. |
+| Model 2B LDA 01 | Immediately after pushback | Logistic Regression 02's selected 28 saved fields plus the fold-fitted pushback-margin spline: 105 prepared predictors | Changes only the classifier. It compares ordinary LDA with shrinkage LDA on the strongest existing pushback representation. |
 | Model 2C Logistic Regression 01 | Immediately after takeoff | BL-A-27 + `DepDelay` + `LOG_TAXI_OUT_MINUTES` + `ACTUAL_TAKEOFF_TIME_SIN` + `ACTUAL_TAKEOFF_TIME_COS`: 31 fields | Adds realized surface duration and takeoff time. Raw `TaxiOut` and `WheelsOff` remain excluded to avoid duplicate representations. |
-
-## Superseded baseline notebooks
-
-`logistic_regression_01.ipynb`, `logistic_regression_02.ipynb`, `decision_tree_01.ipynb`, and
-`decision_tree_02.ipynb` are earlier baseline notebooks. All four use the same BL-D-20 source fields, but they use an older
-random train/test split and missing-row policy. The numbered `*_1a_*` notebooks replace them under the current
-time-ordered protocol. They use the base JFK departure dataset, remain in the repository for history, and are not
-separate current experiments.
+| Model 2C Logistic Regression 02 | Immediately after takeoff | Three 31-field variants: the Experiment 01 control; raw `TaxiOut` in place of `LOG_TAXI_OUT_MINUTES`; and the raw-taxi allowlist plus a model-side spline of `MINUTES_TO_SCHEDULED_ARRIVAL` | Tests different representations of existing takeoff information without creating another feature dataset. `MINUTES_TO_SCHEDULED_ARRIVAL` equals `CRSElapsedTime - DepDelay - TaxiOut`. The raw-taxi spline variant is selected. |
+| Model 2C Logistic Regression 03 | Immediately after takeoff | Logistic Regression 02's selected 31-field raw-taxi allowlist plus the fold-fitted schedule-margin spline: 108 prepared predictors | Changes only the regularization from sparse L1 to ridge L2. It tests whether retaining and shrinking every prepared coefficient improves the same selected representation. |
+| Model 2C Logistic Regression 04 | Immediately after takeoff | Logistic Regression 02's selected 31-field raw-taxi allowlist plus the degree-3 schedule-margin spline: 111 pooled-training predictors | Reuses the exact selected L1 classifier and 0.45 threshold. It changes only the training population to combined 2019 and 2023 data. The unchanged solver reaches its 5,000-iteration ceiling without convergence. |
+| Model 2C Gaussian Naive Bayes 01 | Immediately after takeoff | Logistic Regression 02's selected 31-field raw-taxi allowlist plus the fold-fitted schedule-margin spline: 108 prepared predictors | Changes only the classifier. It tests whether separate Gaussian distributions for each prepared predictor and outcome class can improve the same representation. Variance smoothing is selected on 2019. |
+| Model 2C SVM 01 | Immediately after takeoff | Logistic Regression 02's selected 31-field raw-taxi allowlist plus the fold-fitted schedule-margin spline: 108 prepared predictors. The RBF candidates temporarily map these to 256 random Fourier components inside the model pipeline. | Compares a linear support vector machine with a scalable approximation of the RBF kernel. Kernel family, regularization, and class weighting are selected on 2019. The linear kernel is selected. |
+| Model 2C LDA 01 | Immediately after takeoff | Logistic Regression 02's selected 31-field raw-taxi allowlist plus the fold-fitted schedule-margin spline: 108 prepared predictors | Changes only the classifier. It compares ordinary LDA with shrinkage LDA on the strongest existing takeoff representation. |
+| Model 2C CatBoost 01 | Immediately after takeoff | Same 31 fields as Model 2C Logistic Regression 01 | Changes only the classifier. CatBoost handles `Reporting_Airline` and `Origin` as native categorical fields and tests whether nonlinear relationships improve the post-takeoff prediction. |
+| Model 2C CatBoost 02 | Immediately after takeoff | Two variants: the CatBoost 01 control with 31 fields; and 31 source fields using raw `TaxiOut` plus the model-side field `MINUTES_TO_SCHEDULED_ARRIVAL`, for 32 CatBoost inputs | Tests the schedule-margin idea with CatBoost and no new feature dataset. CatBoost can learn nonlinear splits from the numeric margin, so it does not need the spline used by Logistic Regression 02. The raw-taxi schedule-margin variant is selected. |
+| Model 2C MLP 01 | Immediately after takeoff | Logistic Regression 02's selected 31-field raw-taxi allowlist plus a fold-fitted spline of `MINUTES_TO_SCHEDULED_ARRIVAL`: 108 prepared inputs after imputation, missing indicators, one-hot encoding, scaling, and the spline basis | Tests whether a bounded neural network can improve the strongest existing representation or supply different errors for a later ensemble. The experiment changes the classifier and its preprocessing without creating another feature dataset. |
+| Model 2C CatBoost/MLP Blend 01 | Immediately after takeoff | Probabilities from fixed CatBoost 02 and MLP 01 components. Both begin with the same 31 source fields; CatBoost receives the numeric schedule margin, while the MLP receives its spline representation. | Tests five fixed probability weights without changing either component or creating a combined feature allowlist. The ensemble operates on predictions, not additional source fields. A 50% CatBoost and 50% MLP blend is selected on 2019. |
