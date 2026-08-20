@@ -250,7 +250,8 @@ selected to represent periods before and after the COVID-19 pandemic when the ai
 capacity. The 2019 data provides a pre-pandemic baseline, while 2023 and 2024 show flight operations after the major
 pandemic-related disruptions had passed.
 
-The 2019 flight data will be used for training, the 2023 data for model development and validation, and the 2024 data for final testing. 
+The 2019 flight dataset was used for training and model selection, the 2023 dataset for external validation, and the 2024
+dataset for the one-time final evaluation.
 The split preserves time order so that the models are trained on earlier flights and evaluated
 on later flights they have not seen.
 
@@ -401,7 +402,7 @@ their source notebook.
 | 23 | [Departure delay by weather and traffic](eda/03_weather_and_congestion.ipynb#weather-and-congestion-together) | Interaction between adverse weather and planned traffic level. |
 | 24 | [Selected numeric correlations](eda/03_weather_and_congestion.ipynb#correlation-overview) | Correlations among targets, weather, traffic, and source-age fields. |
 | 25 | [JFK flights by year](eda/04_airport_year_comparison.ipynb#dataset-size-and-basic-coverage) | Flight counts for the 2019, 2023, and 2024 JFK datasets. |
-| 26 | [JFK delay rates by year](eda/04_airport_year_comparison.ipynb#departure-and-arrival-delay-rates) | Departure- and arrival-delay class balance across years. |
+| 26 | [JFK delay rates by year](eda/04_airport_year_comparison.ipynb#departure--and-arrival-delay-rates) | Departure- and arrival-delay class balance across years. |
 | 27 | [JFK delay-rate heatmap](eda/04_airport_year_comparison.ipynb#delay-rate-heatmaps) | Compact comparison of departure and arrival delay rates by year. |
 | 28 | [Monthly JFK delay rates by year](eda/04_airport_year_comparison.ipynb#monthly-patterns) | Seasonal delay patterns compared across the three study years. |
 | 29 | [Hourly JFK delay rates by year](eda/04_airport_year_comparison.ipynb#scheduled-hour-patterns) | Daily delay build-up compared across the three study years. |
@@ -658,14 +659,16 @@ stronger, but they leave less time to act.
 
 The models and decision thresholds were selected with 2019 data, validated on 2023, frozen, and then evaluated once on 2024.
 Nothing was changed in response to the final-test results. Higher average precision (AP), ROC AUC, and F1 are
-better; lower Brier score is better.
+better; lower Brier score is better. Each frozen-design link below opens its winning notebook at the 2023
+validation-performance visualization; the complete frozen-model run is in the
+[final 2024 evaluation notebook](models/final_evaluation_2024_01.ipynb#final-test-results).
 
 | Model and prediction time | Frozen design | 2023 AP | 2024 AP | 2024 ROC AUC | 2024 Brier | 2024 F1 at frozen threshold |
 |---|---|---:|---:|---:|---:|---:|
-| 1A — before pushback | CatBoost 04 | 0.7526 | **0.7250** | 0.8517 | 0.0983 | 0.6321 at 0.31 |
-| 2A — before pushback | Logistic Regression 01 | 0.4019 | **0.3482** | 0.6569 | 0.1603 | 0.3993 at 0.22 |
-| 2B — after pushback | Logistic Regression 02 | 0.8704 | **0.8757** | 0.9254 | 0.0626 | 0.7992 at 0.39 |
-| 2C — after takeoff | Logistic Regression 02 | 0.9145 | **0.9268** | 0.9611 | 0.0465 | 0.8528 at 0.45 |
+| 1A — before pushback | [CatBoost 04](models/catboost_1a_04.ipynb#fit-both-variants-on-all-2019-rows-and-compare-once-on-2023) | 0.7526 | **0.7250** | 0.8517 | 0.0983 | 0.6321 at 0.31 |
+| 2A — before pushback | [Logistic Regression 01](models/logistic_regression_2a_01.ipynb#evaluate-the-2023-external-validation-dataset) | 0.4019 | **0.3482** | 0.6569 | 0.1603 | 0.3993 at 0.22 |
+| 2B — after pushback | [Logistic Regression 02](models/logistic_regression_2b_02.ipynb#refit-the-selected-design-on-2019-and-evaluate-2023) | 0.8704 | **0.8757** | 0.9254 | 0.0626 | 0.7992 at 0.39 |
+| 2C — after takeoff | [Logistic Regression 02](models/logistic_regression_2c_02.ipynb#refit-the-selected-design-on-2019-and-evaluate-2023) | 0.9145 | **0.9268** | 0.9611 | 0.0465 | 0.8528 at 0.45 |
 
 [Appendix F](Appendix-F.md#final-2024-evaluation) provides the complete final-test tables, including precision, recall,
 balanced accuracy, and MCC.
