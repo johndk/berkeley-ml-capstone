@@ -699,6 +699,60 @@ the final evaluation; confirming a retraining benefit would require another unto
 
 ## Deployment
 
+This capstone did not deploy a live prediction service. A production implementation would be a decision-support system,
+not an automated authority over passengers, employees, or flight operations. Model 1A could provide an early risk score
+for passenger communication, gate planning, and connection preparation before pushback. Models 2B and 2C could update
+that score as actual operating events arrive. Model 2A is less accurate, but it provides a pre-pushback arrival-risk
+baseline when a corresponding departure model is not available at the origin.
+
+### Proposed architecture and data continuity
+
+A realistic implementation would use a secure cloud or airline-managed environment. Live schedule, weather, airport,
+aircraft-assignment, gate-out, and takeoff events would enter a validated data pipeline. The pipeline would reproduce the
+frozen feature definitions and send each flight to the model appropriate for its current prediction time. A versioned
+service would return the delay probability, model version, prediction time, and threshold result to an operations system
+or dashboard. JFK flight volume does not require edge computing; a small event-driven service that can scale during
+weather disruptions would be sufficient. Expansion beyond JFK would require validated weather-station mappings and
+equivalent operational feeds for each additional airport.
+
+Production input checks would enforce schemas, allowed ranges, timestamp order, uniqueness, and maximum feed age. A
+prediction would be withheld when a required event is unavailable or arrives after its cutoff; optional missing fields
+would follow the model's documented preprocessing. The final BTS `Tail_Number` cannot support live Model 1A scoring.
+That model should not be released until timestamped aircraft assignments and inbound estimates are available and its
+rotation features have been revalidated. The operational data sources that could close these gaps are described in
+[Next Steps](#next-steps).
+
+### Monitoring and operations
+
+Every prediction should log the flight identifier, input-data versions or snapshot, prediction cutoff, feature-pipeline
+and model versions, probability, threshold, classification, and eventual outcome. Automated monitoring should cover feed
+availability and freshness, missing or invalid values, scoring latency, service errors, input and prediction drift, and
+prediction volume. Once outcomes become available, the same AP, ROC AUC, Brier, precision, recall, and F1 measures used in
+this report should be reviewed overall and by airline, time of day, traffic level, and weather conditions. Material drift,
+calibration loss, or subgroup degradation should trigger investigation and, when necessary, suspension or rollback.
+Operations staff should also be able to flag unusable predictions so recurring data or workflow problems enter the
+review process.
+
+### MLOps, governance, and responsible use
+
+The feature pipeline and model service should be packaged in a reproducible container and promoted through development,
+staging, and production by automated tests. Tests should cover source contracts, prediction-time eligibility, feature
+calculations, model loading, representative predictions, and failure behavior. A registry should retain approved data,
+feature, model, threshold, and code versions so any prediction can be reproduced and a prior release restored.
+
+Retraining should be considered on a scheduled review or after confirmed drift, not performed automatically in response
+to a short-term metric change. A candidate would repeat chronological validation, calibration and subgroup checks, and
+comparison with the current model before approval by both a model owner and an operational stakeholder. Because 2024 has
+already been examined, future changes require a later untouched evaluation period.
+
+The source datasets contain operational flight records rather than passenger-level attributes, but access should still
+be limited and logs retained only as long as needed for monitoring and audit. Airline, route, time, traffic, and weather
+subgroups should be reviewed for uneven error rates. Users should see probabilities and known limitations, including the
+risk of false alerts and missed delays, and predictions should support—not replace—human operational judgment. Deployment
+success should therefore include both model quality and operational measures such as usable warning time, service
+reliability, staff use of alerts, and whether alerts improve communication or planning without creating excessive
+unnecessary interventions.
+
 ## Next Steps
 
 Further improvement to Model 1A will likely require better operational data rather than more transformations of the
