@@ -283,12 +283,12 @@ arrival scenario, the departure airport changes from flight to flight. Each incl
 station mapping, source cleaning and validation, and its own prediction-time-safe joins.
 
 
-Model 1A expanded beyond the baseline with an engineered operation feature set. It added recent JFK and
+Model 1A expanded beyond the baseline with an engineered airport operations feature set. It added recent JFK and
 same-airline departure backlogs, plus aircraft-rotation information describing whether the assigned aircraft had
 arrived and how much turnaround time was available before pushback. These additions were developed to improve Model
 1A, which must predict departure delay before it occurs.
 
-The arrival models did not require this expanded operational
+The arrival models did not use this expanded airport operations
 feature set: Model 2A provides the early baseline, Model 2B can use actual departure delay, and Model 2C also adds
 taxi-out time. Those observed values already summarize much of the delay accumulated before the arrival prediction.
 Models 2A,B,C must collect and validate consistent ASPM and NOAA context across the inbound flights.
@@ -304,7 +304,7 @@ The work includes:
 - Measuring model performance on later flights that were not used for training
 - Explaining which factors have the strongest effect on each model's predictions
 
-The project focuses on individual flights. A separate Model 1A extension now tests the immediately preceding aircraft
+The project focuses on individual flights. A separate Model 1A extension tests the immediately preceding aircraft
 leg at JFK, but longer previous-flight chains and delay spread through an airline network remain out of scope. The
 approach is informed by the flight-level delay research of Snell, Zoutendijk, and Pineda. The final analysis focuses on
 model performance and the factors associated with delays at JFK.
@@ -615,12 +615,14 @@ the table shows how the progression performed on 2023 validation data.
 | Change to CatBoost | Learn nonlinear interactions from the same operational inputs | 0.7473 |
 | Add same-airline backlog | Add recent operating pressure within the target airline | **0.7526** |
 
-Aircraft rotation produced the largest feature gain. Random Forest reached 0.7409 using CatBoost 04's exact 41 fields,
+Aircraft rotation produced the largest feature gain. Random Forest reached 0.7409 using the exact 41 fields from
+[CatBoost experiment #4](models/catboost_1a_04.ipynb#fit-both-variants-on-all-2019-rows-and-compare-once-on-2023),
 which confirms that the operational inputs—not CatBoost alone—drive most of the improvement. CatBoost used those inputs
 best. Broader feature sets, deeper CatBoost variants, probability calibration, and a CatBoost/MLP blend did not provide
-enough additional value to replace CatBoost 04.
+enough additional value to replace that design.
 
-CatBoost 04 is therefore the preferred Model 1A design. Its rotation fields rely on the final aircraft recorded by BTS,
+[CatBoost experiment #4](models/catboost_1a_04.ipynb#fit-both-variants-on-all-2019-rows-and-compare-once-on-2023) is
+therefore the preferred Model 1A design. Its rotation fields rely on the final aircraft recorded by BTS,
 so its performance remains a retrospective upper bound until prediction-time aircraft assignments are available.
 
 ### Arrival models: observed operations drove the gains
@@ -628,11 +630,11 @@ so its performance remains a retrospective upper bound until prediction-time air
 Models 2A, 2B, and 2C use the same JFK-bound flights. Their main difference is when the prediction is made and what has
 been observed by then.
 
-| Model | New operating information | Preferred design | 2023 average precision |
-|---|---|---|---:|
-| 2A: before pushback | None; schedule, route, planned origin traffic, and weather only | Logistic Regression 01 | 0.4019 |
-| 2B: after pushback | Actual departure delay and time remaining until scheduled arrival | Logistic Regression 02 | 0.8704 |
-| 2C: after takeoff | Taxi-out time, actual takeoff time, and updated time remaining | Logistic Regression 02 | **0.9145** |
+| Model | New operating information | Preferred design                                                                                                        | 2023 average precision |
+|---|---|-------------------------------------------------------------------------------------------------------------------------|---:|
+| 2A: before pushback | None; schedule, route, planned origin traffic, and weather only | [2A Logistic Regression #1](models/logistic_regression_2a_01.ipynb#evaluate-the-2023-external-validation-dataset)       | 0.4019 |
+| 2B: after pushback | Actual departure delay and time remaining until scheduled arrival | [2B Logistic Regression #2](models/logistic_regression_2b_02.ipynb#refit-the-selected-design-on-2019-and-evaluate-2023) | 0.8704 |
+| 2C: after takeoff | Taxi-out time, actual takeoff time, and updated time remaining | [2C Logistic Regression #2](models/logistic_regression_2c_02.ipynb#refit-the-selected-design-on-2019-and-evaluate-2023) | **0.9145** |
 
 Pushback information was transformative: average precision increased by 0.4685 because actual departure delay directly
 shows how late the flight began operating. Taxi-out information added another 0.0441 after takeoff because time spent
@@ -666,12 +668,12 @@ better; lower Brier score is better. Each frozen-design link below opens its win
 validation-performance visualization; the complete frozen-model run is in the
 [final 2024 evaluation notebook](models/final_evaluation_2024_01.ipynb#final-test-results).
 
-| Model and prediction time | Frozen design | 2023 AP | 2024 AP | 2024 ROC AUC | 2024 Brier | 2024 F1 at frozen threshold |
-|---|---|---:|---:|---:|---:|---:|
-| 1A — before pushback | [CatBoost 04](models/catboost_1a_04.ipynb#fit-both-variants-on-all-2019-rows-and-compare-once-on-2023) | 0.7526 | **0.7250** | 0.8517 | 0.0983 | 0.6321 at 0.31 |
-| 2A — before pushback | [Logistic Regression 01](models/logistic_regression_2a_01.ipynb#evaluate-the-2023-external-validation-dataset) | 0.4019 | **0.3482** | 0.6569 | 0.1603 | 0.3993 at 0.22 |
-| 2B — after pushback | [Logistic Regression 02](models/logistic_regression_2b_02.ipynb#refit-the-selected-design-on-2019-and-evaluate-2023) | 0.8704 | **0.8757** | 0.9254 | 0.0626 | 0.7992 at 0.39 |
-| 2C — after takeoff | [Logistic Regression 02](models/logistic_regression_2c_02.ipynb#refit-the-selected-design-on-2019-and-evaluate-2023) | 0.9145 | **0.9268** | 0.9611 | 0.0465 | 0.8528 at 0.45 |
+| Model and prediction time | Frozen design                                                                                                           | 2023 AP | 2024 AP | 2024 ROC AUC | 2024 Brier | 2024 F1 at frozen threshold |
+|---|-------------------------------------------------------------------------------------------------------------------------|---:|---:|---:|---:|---:|
+| 1A — before pushback | [CatBoost experiment #4](models/catboost_1a_04.ipynb#fit-both-variants-on-all-2019-rows-and-compare-once-on-2023)       | 0.7526 | **0.7250** | 0.8517 | 0.0983 | 0.6321 at 0.31 |
+| 2A — before pushback | [2A Logistic Regression #1](models/logistic_regression_2a_01.ipynb#evaluate-the-2023-external-validation-dataset)       | 0.4019 | **0.3482** | 0.6569 | 0.1603 | 0.3993 at 0.22 |
+| 2B — after pushback | [2B Logistic Regression #2](models/logistic_regression_2b_02.ipynb#refit-the-selected-design-on-2019-and-evaluate-2023) | 0.8704 | **0.8757** | 0.9254 | 0.0626 | 0.7992 at 0.39 |
+| 2C — after takeoff | [2C Logistic Regression #2](models/logistic_regression_2c_02.ipynb#refit-the-selected-design-on-2019-and-evaluate-2023) | 0.9145 | **0.9268** | 0.9611 | 0.0465 | 0.8528 at 0.45 |
 
 [Appendix F](Appendix-F.md#final-2024-evaluation) provides the complete final-test tables, including precision, recall,
 balanced accuracy, and MCC.
@@ -700,7 +702,7 @@ of cause, and the audit did not change the selected model. Full subgroup and SHA
 
 After the final evaluation, the same frozen designs were refitted on combined 2019 and 2023 data. The check produced
 small gains for Models 1A and 2A, little change for Model 2B, and no meaningful gain for Model 2C. It does not replace
-the final evaluation; confirming a retraining benefit would require another untouched year. Details are in
+the final evaluation. Details are in
 [Appendix F](Appendix-F.md#post-test-combined-training-sensitivity).
 
 ## Deployment
